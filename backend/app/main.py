@@ -6,8 +6,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 
 from app import __version__
+from app.api import datasets
 from app.config import Settings, get_settings
 from app.db import init_db, make_engine
+from app.errors import install_error_handlers
 from app.repository import Repository
 from app.schemas import Health
 from app.storage import make_storage
@@ -27,6 +29,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine.dispose()
 
     app = FastAPI(title="ZeroCast API", version=__version__, lifespan=lifespan)
+    install_error_handlers(app)
+    app.include_router(datasets.router)
 
     @app.get("/health", response_model=Health, response_model_exclude_none=True)
     def health(request: Request) -> Health:

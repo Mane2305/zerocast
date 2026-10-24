@@ -26,6 +26,32 @@ Check it is up: `curl http://localhost:8000/health` →
 `{"status":"ok","model_loaded":false,"device":"cpu","version":"0.1.0"}`.
 Interactive docs: http://localhost:8000/docs.
 
+## Datasets (B3)
+
+```bash
+curl -F file=@sales.csv -F name="Store sales" -F holiday_country=IN http://localhost:8000/datasets
+curl http://localhost:8000/datasets/<dataset_id>
+curl http://localhost:8000/datasets/<dataset_id>/series/<series_id>
+```
+
+- Accepts Parquet (detected by content) or UTF-8 CSV in the universal long template
+  (`date`, `series_id`, `target`, optional numeric factor columns), max 50 MB.
+- Unusable files return 422 with an `Error` body; `code` is one of `invalid_columns`,
+  `invalid_dates`, `empty_file`, `unreadable_file`, `file_too_large`, `invalid_holiday_country`,
+  `validation_error`.
+- The health check (`app/services/health_check.py`) runs on upload. Decisions it makes:
+  - Frequency is the median spacing between consecutive dates (hourly → yearly, else `unknown`).
+  - Missing dates on the detected grid are filled as blanks. Duplicate `(series_id, date)` rows
+    keep the last row. `±inf` becomes blank. Negative values are kept.
+  - Series with fewer than 30 non-blank values, or whose dates don't sit on a regular grid, are
+    `excluded`. Constant series get a `warning`.
+  - Only the first 10 factor columns are kept; the rest are reported under `too_many_factors`.
+  - Every check is always listed; a check with count 0 has severity `info`.
+- The cleaned, regular-grid frame is stored as `datasets/<id>/clean.parquet`. Later jobs read
+  this file, not the original upload.
+- Dates in responses are ISO 8601 without a timezone (`2024-01-01T00:00:00`), because business
+  dates have none. Adding `Z` would shift days for users west of UTC.
+
 ## Configuration
 
 All settings come from environment variables (or a git-ignored `backend/.env` file).
