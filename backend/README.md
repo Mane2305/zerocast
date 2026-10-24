@@ -199,10 +199,13 @@ uv run python -m scripts.precompute_demos --only manufacturing --out <some dir>
 - `dataset.json` lists every series. `history.json` and `forecast.json` hold only the primary
   series, because the frontend loader currently expects exactly one forecast series per demo.
 - Forecasts use seed 0, so reruns are identical apart from `latency_ms`.
-- Review and factor results will be added when B7/B8 land.
+- Every demo forecast includes `step_exceedance_grid` and a non-null `last_year`; the script
+  fails if a demo has less than one seasonal cycle of history.
+- Also writes `review.json` and, when the dataset has factor columns, `factors.json`.
 - **Before writing into `frontend/public/demo`:** that folder belongs to the frontend
   (CLAUDE.md rule 1), and both datasets' licences are unconfirmed (see
-  `data/scripts/README.md`). Get the owner's go-ahead first.
+  `data/scripts/README.md`). Get the owner's go-ahead first. The owner approved writing
+  `manufacturing/` there on 2026-10-24.
 
 ## Configuration
 

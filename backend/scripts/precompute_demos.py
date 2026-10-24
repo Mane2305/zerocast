@@ -94,6 +94,11 @@ def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[s
     history = history_from_frame(health.frame, spec.primary_series, health.factor_columns)
     values = series_values(health.frame, spec.primary_series)
     forecast = forecast_series(engine, values, health.frequency, spec.horizon, SEED)
+    # Demos must always show the capacity-risk grid and the last-year overlay.
+    if not forecast["step_exceedance_grid"]["percentiles"] or forecast["last_year"] is None:
+        raise ValueError(
+            f"{spec.demo_id}: needs at least one year of history for the last-year overlay"
+        )
     files = {
         "dataset": dataset_response(record),
         "review": review_demo(spec, values, health.frequency, engine),

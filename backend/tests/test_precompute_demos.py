@@ -81,6 +81,9 @@ def test_matches_frontend_loader_rules(tmp_path, spec, tiny_engine):
         assert len(series["quantiles"]) == len(forecast["quantile_levels"])
         assert all(len(row) == len(series["dates"]) for row in series["quantiles"])
         assert len(series["total_distribution"]["percentiles"]) == 101
+        grid = series["step_exceedance_grid"]["percentiles"]
+        assert len(grid) == 99 and all(len(row) == len(series["dates"]) for row in grid)
+        assert series["last_year"] is not None and len(series["last_year"]) == len(series["dates"])
     assert forecast["series"][0]["dates"][0] == "2023-01-01T00:00:00"
 
 
@@ -106,6 +109,17 @@ def test_unusable_primary_series_rejected(tmp_path, spec, tiny_engine):
     bad = precompute_demos.DemoSpec(**{**spec.__dict__, "primary_series": "nope"})
     with pytest.raises(ValueError, match="primary series"):
         precompute_demos.precompute([bad], tiny_engine, tmp_path / "out")
+
+
+def test_short_history_without_last_year_rejected(tmp_path, spec, tiny_engine):
+    source = tmp_path / "short.parquet"
+    days = pd.date_range("2024-01-01", periods=60, freq="D").strftime("%Y-%m-%d")
+    pd.DataFrame({"date": days, "series_id": "cement", "target": np.arange(60.0)}).to_parquet(
+        source, index=False
+    )
+    short = precompute_demos.DemoSpec(**{**spec.__dict__, "source": source})
+    with pytest.raises(ValueError, match="last-year"):
+        precompute_demos.precompute([short], tiny_engine, tmp_path / "out")
 
 
 def test_default_demo_ids_differ_from_frontend_mocks():
