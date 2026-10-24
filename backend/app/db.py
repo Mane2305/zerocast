@@ -1,0 +1,71 @@
+"""SQLAlchemy engine, session factory and table definitions."""
+
+from datetime import UTC, datetime
+from pathlib import Path
+
+from sqlalchemy import JSON, DateTime, Float, String, Text, UniqueConstraint, create_engine
+from sqlalchemy.engine import Engine, make_url
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+
+
+def utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class DatasetRow(Base):
+    __tablename__ = "datasets"
+
+    dataset_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    storage_key: Mapped[str] = mapped_column(String(512))
+    holiday_country: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    # Frequency, series summaries and health report; shape owned by the datasets service.
+    meta: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class JobRow(Base):
+    __tablename__ = "jobs"
+
+    job_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    job_type: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(16), default="queued")
+    progress: Mapped[float] = mapped_column(Float, default=0.0)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    params: Mapped[dict] = mapped_column(JSON, default=dict)
+    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    error: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AnnotationRow(Base):
+    __tablename__ = "annotations"
+    __table_args__ = (UniqueConstraint("dataset_id", "series_id", "date"),)
+
+    annotation_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String(64), index=True)
+    series_id: Mapped[str] = mapped_column(String(255))
+    date: Mapped[str] = mapped_column(String(32))
+    text: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+def make_engine(db_url: str) -> Engine:
+    url = make_url(db_url)
+    connect_args = {}
+    if url.get_backend_name() == "sqlite":
+        # FastAPI serves requests from a thread pool; the job worker is another thread.
+        connect_args["check_same_thread"] = False
+        if url.database and url.database != ":memory:":
+            Path(url.database).parent.mkdir(parents=True, exist_ok=True)
+    return create_engine(db_url, connect_args=connect_args)
+
+
+def init_db(engine: Engine) -> sessionmaker:
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine, expire_on_commit=False)
