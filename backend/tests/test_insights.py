@@ -47,12 +47,22 @@ def test_risk_direction(below, above, direction):
     assert insights.risk_direction(band(100, below, above), LEVELS) == direction
 
 
-def test_trust_horizon_is_steps_before_threshold():
-    widening = np.linspace(2, 80, 10)  # relative width 0.04 … 1.6
+def test_trust_horizon_uses_cumulative_ratio_of_sums():
+    widening = np.linspace(2, 160, 10)  # per-step band width; P50 = 100
     q = band(100, widening / 2, widening / 2)
 
-    first_bad = int(np.argmax(widening / 100 > insights.TRUST_THRESHOLD))
-    assert insights.trust_horizon(q, LEVELS) == first_bad
+    cumulative = np.cumsum(widening) / (100 * np.arange(1, 11))
+    first_bad = int(np.argmax(cumulative > insights.TRUST_THRESHOLD))
+    assert insights.trust_horizon(q, LEVELS) == first_bad == 6
+    # A per-step rule would have stopped earlier, at the first step wider than ±25%.
+    assert int(np.argmax(widening / 100 > insights.TRUST_THRESHOLD)) == 3
+
+
+def test_trust_horizon_survives_a_closed_day():
+    # Step 3 is a closed day: P50 ~ 0 with a small band. The cumulative ratio barely moves.
+    p50 = np.array([100, 100, 100, 1, 100, 100, 100, 100, 100, 100], dtype=float)
+    q = band(p50, 10, 10)
+    assert insights.trust_horizon(q, LEVELS) == 10
 
 
 def test_trust_horizon_full_and_zero():

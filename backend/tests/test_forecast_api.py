@@ -33,8 +33,8 @@ def daily_csv(days=500, series=("A", "B")) -> bytes:
     return buffer.getvalue().encode()
 
 
-def upload(client) -> str:
-    response = client.post("/datasets", files={"file": ("sales.csv", daily_csv())})
+def upload(client, **form) -> str:
+    response = client.post("/datasets", files={"file": ("sales.csv", daily_csv())}, data=form)
     assert response.status_code == 201
     return response.json()["dataset_id"]
 
@@ -179,3 +179,18 @@ def test_series_with_negative_history_are_not_clipped(tiny_engine):
     raw = tiny_engine.forecast(profit, 14, "daily", seed=0)
     np.testing.assert_array_equal(quantiles, raw.quantiles)
     np.testing.assert_array_equal(paths, raw.paths)
+
+
+def test_non_additive_dataset_forecasts_the_horizon_mean(model_client):
+    body = {"series_ids": ["A"], "horizon": 12}
+    total = run_job(model_client, {**body, "dataset_id": upload(model_client)})
+    mean = run_job(model_client, {**body, "dataset_id": upload(model_client, additive="false")})
+
+    total_series, mean_series = total["result"]["series"][0], mean["result"]["series"][0]
+    assert total_series["total_distribution"]["aggregation"] == "sum"
+    assert mean_series["total_distribution"]["aggregation"] == "mean"
+    np.testing.assert_allclose(
+        mean_series["total_distribution"]["percentiles"],
+        np.array(total_series["total_distribution"]["percentiles"]) / 12,
+        rtol=1e-5,
+    )

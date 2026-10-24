@@ -22,3 +22,6 @@ Short records of why we chose things. Add new entries at the bottom; never rewri
 | 16 | Database connector is P2 ("coming soon") | Keep Phase 1 scope realistic |
 | 17 | Sample paths reproduced in our engine (private Yug API, pinned + tested) | `predict()` returns only quantiles; totals need paths |
 | 18 | Not building: anomaly early-warning monitor, "second opinion" audit, new-product forecaster | Considered and set aside; may revisit after Phase 1 |
+| 19 | Retail demo uses UCI Online Retail II (CC BY 4.0) instead of Favorita | Favorita's Kaggle terms could not be checked; UCI licence is explicit |
+| 20 | Datasets carry `additive`; non-additive (index, price) horizons report the MEAN, not the total | A sum of index values is meaningless; `aggregation` makes the switch explicit |
+| 21 | Risk metrics use ratios of sums over the horizon (trust horizon on cumulative sums) | Mean of per-step ratios explodes on near-zero steps such as closed days |

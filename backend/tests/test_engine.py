@@ -1,11 +1,12 @@
 import threading
+from pathlib import Path
 
 import numpy as np
 import pytest
 
 from app.engine import EngineNotReady, YugEngine
 from app.engine.summaries import step_exceedance_grid, total_distribution
-from app.engine.yug_engine import YUG_FREQ, sanitize_context
+from app.engine.yug_engine import YUG_FREQ, sanitize_context, yug_commit
 
 from .conftest import TINY_SAMPLES
 
@@ -167,3 +168,18 @@ def test_step_exceedance_grid_shape():
     grid = np.array(step_exceedance_grid(np.random.default_rng(0).normal(size=(100, 12))))
     assert grid.shape == (99, 12)
     assert np.all(np.diff(grid, axis=0) >= 0)
+
+
+def test_total_distribution_mean_aggregation():
+    paths = np.random.default_rng(1).normal(10, 3, size=(500, 12))
+    mean = np.array(total_distribution(paths, "mean"))
+    total = np.array(total_distribution(paths, "sum"))
+    np.testing.assert_allclose(mean, total / 12)
+    with pytest.raises(ValueError, match="aggregation"):
+        total_distribution(paths, "median")
+
+
+def test_yug_commit_is_the_pinned_git_commit():
+    commit = yug_commit()
+    pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text("utf-8")
+    assert commit and len(commit) == 40 and commit in pyproject

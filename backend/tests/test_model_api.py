@@ -12,6 +12,8 @@ def test_model_info_matches_contract(model_client):
     assert body["block_size"] == 64
     assert body["license"] == "CC-BY-NC-4.0 (weights)"
     assert body["parameters"] > 0
+    assert len(body["revision"]) == 40  # the pinned yug commit
+    assert body.get("weights_revision") is None  # ZC_MODEL_REVISION not set in tests
 
 
 def test_health_ok_when_model_loaded(model_client):

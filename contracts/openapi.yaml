@@ -45,6 +45,10 @@ paths:
                 file: { type: string, format: binary, description: "Parquet or CSV, max 50 MB" }
                 name: { type: string }
                 holiday_country: { type: string, description: "ISO country code for the holiday calendar, e.g. IN" }
+                additive:
+                  type: boolean
+                  default: true
+                  description: "true if values add up over time (units, tonnes, revenue); false for indices, prices, rates"
       responses:
         "201":
           description: Created
@@ -216,6 +220,7 @@ components:
       properties:
         name: { type: string, examples: ["birlaailabs/yug"] }
         revision: { type: string, description: "Pinned commit or release" }
+        weights_revision: { type: ["string", "null"], description: "Hugging Face revision of the weights, if pinned" }
         parameters: { type: integer, examples: [271845260] }
         quantile_levels: { type: array, items: { type: number } }
         max_context: { type: integer, examples: [2048] }
@@ -237,8 +242,9 @@ components:
 
     Dataset:
       type: object
-      required: [dataset_id, name, frequency, series_count, factor_columns, health]
+      required: [dataset_id, name, frequency, series_count, factor_columns, health, additive]
       properties:
+        additive: { type: boolean, description: "Whether horizon totals are meaningful; see total_distribution.aggregation" }
         dataset_id: { type: string }
         name: { type: string }
         created_at: { type: string, format: date-time }
@@ -283,7 +289,7 @@ components:
       properties:
         id:
           type: string
-          enum: [missing_dates, duplicates, negative_values, non_finite, too_short, constant_series, irregular_spacing, too_many_factors]
+          enum: [missing_dates, duplicates, negative_values, non_finite, too_short, constant_series, irregular_spacing, too_many_factors, zero_values]
         label: { type: string, examples: ["Missing dates"] }
         severity: { type: string, enum: [info, warning, error] }
         count: { type: integer }
@@ -390,10 +396,11 @@ components:
           items: { type: ["number", "null"] }
         total_distribution:
           type: object
-          description: "Distribution of the horizon TOTAL computed from sample paths. percentiles[i] is the (i)th percentile, i = 0..100."
-          required: [percentiles]
+          description: "Distribution of the horizon TOTAL (aggregation = sum) or horizon MEAN (aggregation = mean, for non-additive datasets), computed from sample paths. percentiles[i] is the (i)th percentile, i = 0..100."
+          required: [percentiles, aggregation]
           properties:
             percentiles: { type: array, items: { type: number }, minItems: 101, maxItems: 101 }
+            aggregation: { type: string, enum: [sum, mean] }
         step_exceedance_grid:
           type: object
           description: "Optional: per-step percentiles 1..99 from sample paths, for capacity-risk lookups. Shape [99][horizon]."
@@ -408,10 +415,10 @@ components:
       type: object
       required: [uncertainty_score, risk_direction, trust_horizon]
       properties:
-        uncertainty_score: { type: number, description: "mean over horizon of (P90-P10)/|P50|" }
+        uncertainty_score: { type: number, description: "sum over horizon of (P90-P10) / sum over horizon of |P50|" }
         uncertainty_label: { type: string, enum: [predictable, moderate, volatile] }
         risk_direction: { type: string, enum: [upside, downside, balanced] }
-        trust_horizon: { type: integer, description: "Last step before relative band width exceeds the threshold" }
+        trust_horizon: { type: integer, description: "Number of leading steps h for which sum_1..h (P90-P10) / sum_1..h |P50| stays within the threshold" }
 
     ReviewResult:
       type: object
@@ -428,6 +435,7 @@ components:
               misses: { type: array, items: { $ref: "#/components/schemas/SurpriseEvent" } }
               expected_total: { type: number }
               actual_total: { type: number }
+              aggregation: { type: string, enum: [sum, mean], description: "mean for non-additive datasets: expected_total/actual_total are then period means" }
               band_coverage: { type: number, description: "Share of replayed periods inside P10-P90 (expected ~0.8)" }
 
     SurpriseEvent:

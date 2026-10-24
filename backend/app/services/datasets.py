@@ -40,6 +40,7 @@ def ingest(
     holiday_country: str | None,
     repository: Repository,
     storage: Storage,
+    additive: bool = True,
 ) -> DatasetRecord:
     result = run_health_check(read_upload(data))
     record = DatasetRecord(name=name, storage_key="", holiday_country=holiday_country)
@@ -53,8 +54,14 @@ def ingest(
         "date_range": result.date_range,
         "series": result.series,
         "health": result.report,
+        "additive": additive,
     }
     return repository.add_dataset(record)
+
+
+def is_additive(record: DatasetRecord) -> bool:
+    """Datasets stored before the flag existed are treated as additive (the old behaviour)."""
+    return bool(record.meta.get("additive", True))
 
 
 def dataset_response(record: DatasetRecord) -> dict[str, Any]:
@@ -67,6 +74,7 @@ def dataset_response(record: DatasetRecord) -> dict[str, Any]:
         "holiday_country": record.holiday_country,
         "series_count": len(meta["series"]),
         "factor_columns": meta["factor_columns"],
+        "additive": is_additive(record),
         "date_range": meta["date_range"],
         "series": meta["series"],
         "health": meta["health"],

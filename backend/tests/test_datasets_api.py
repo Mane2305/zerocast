@@ -130,3 +130,12 @@ def test_invalid_holiday_country(client):
     response = upload(client, template_csv(), holiday_country="India!")
     assert response.status_code == 422
     assert response.json()["code"] == "invalid_holiday_country"
+
+
+def test_additive_flag_defaults_true_and_can_be_false(client):
+    default = upload(client, template_csv()).json()
+    index = upload(client, template_csv(), additive="false").json()
+
+    assert default["additive"] is True and index["additive"] is False
+    assert_matches_schema("Dataset", index)
+    assert client.get(f"/datasets/{index['dataset_id']}").json()["additive"] is False

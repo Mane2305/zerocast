@@ -57,12 +57,20 @@ Measured on the owner's laptop (CPU, 100 samples): horizon 28 ≈ 0.1 s, horizon
 
 ```bash
 curl -F file=@sales.csv -F name="Store sales" -F holiday_country=IN http://localhost:8000/datasets
+curl -F file=@index.csv -F name="Cement index" -F additive=false http://localhost:8000/datasets
 curl http://localhost:8000/datasets/<dataset_id>
 curl http://localhost:8000/datasets/<dataset_id>/series/<series_id>
 ```
 
 - Accepts Parquet (detected by content) or UTF-8 CSV in the universal long template
   (`date`, `series_id`, `target`, optional numeric factor columns), max 50 MB.
+- `additive` (form field, default `true`): set `false` for an index, a price or a rate. Then
+  forecast `total_distribution` and the review's `expected_total`/`actual_total` describe the
+  horizon MEAN, and say so with `aggregation: "mean"`. Datasets stored before the flag existed
+  are treated as additive.
+- The health check also reports `zero_values` (info): every 0 in `target`, e.g. closed days
+  filled with 0. It cannot tell a filled 0 from a real zero, and it does not turn a series into
+  a warning.
 - Unusable files return 422 with an `Error` body; `code` is one of `invalid_columns`,
   `invalid_dates`, `empty_file`, `unreadable_file`, `file_too_large`, `invalid_holiday_country`,
   `validation_error`.
@@ -96,7 +104,8 @@ curl http://localhost:8000/jobs/<job_id>     # poll until status is succeeded or
   `model_disabled`, `model_failed`, `internal_error`. A malformed body (e.g. horizon > 256)
   gets 422.
 - The forecast reads the cleaned history (missing dates are NaN, masked by Yug) and returns
-  quantiles, `total_distribution` (percentiles 0..100 of the horizon total from sample paths),
+  quantiles, `total_distribution` (percentiles 0..100 of the horizon total, or mean for a
+  non-additive dataset, from sample paths; `aggregation` says which),
   `step_exceedance_grid` (per-step percentiles 1..99), `last_year` and `risk`. Numbers are
   rounded to 6 significant digits.
 - If a series' history has no negative values, quantiles and sample paths are clipped at 0
@@ -113,7 +122,8 @@ curl http://localhost:8000/jobs/<job_id>     # poll until status is succeeded or
     `moderate` in between.
   - `risk_direction` is `upside`/`downside` when one side of the band is on average 1.5× wider
     than the other.
-  - `trust_horizon` is the number of leading steps whose relative width stays ≤ 0.5 (about ±25%).
+  - `trust_horizon` is the number of leading steps h for which the same ratio of sums over
+    steps 1..h stays ≤ 0.5 (about ±25%).
 - Note for consumers: Yug draws one random number per 64-step block, so within a block the
   sample paths move together. Totals still come from paths (`total_distribution`), as required.
 
@@ -195,14 +205,17 @@ uv run python -m scripts.precompute_demos --out ../frontend/public/demo   # real
 uv run python -m scripts.precompute_demos --only manufacturing --out <some dir>
 ```
 
-- Writes `<out>/<demo_id>/{dataset,history,forecast}.json` in the contract shapes (Dataset,
-  SeriesHistory, ForecastResult), matching what `frontend/src/lib/load-demo.ts` checks.
+- Writes `<out>/<demo_id>/{dataset,history,histories,forecast,review,factors}.json` in the
+  contract shapes (Dataset, SeriesHistory, [SeriesHistory], ForecastResult, ReviewResult,
+  FactorResult).
 - Demo ids are `retail` (UCI Online Retail II, 5 product families, primary series `BAGS`,
   horizon 14, so it stops before the Christmas shutdown) and
-  `manufacturing` (cement, horizon 12). They are separate from the frontend's synthetic
+  `manufacturing` (cement, horizon 12, `additive=false` because it is an index; factor
+  check on steel, electricity and coal). They are separate from the frontend's synthetic
   `*-mock` fixtures.
-- `dataset.json` lists every series. `history.json` and `forecast.json` hold only the primary
-  series, because the frontend loader currently expects exactly one forecast series per demo.
+- `forecast.json` and `review.json` cover every usable series, primary first.
+  `histories.json` is an array of SeriesHistory in the same order; `history.json` is the
+  primary series alone (kept for the current loader). `factors.json` is for the primary series.
 - Forecasts use seed 0, so reruns are identical apart from `latency_ms`.
 - Every demo forecast includes `step_exceedance_grid` and a non-null `last_year`; the script
   fails if a demo has less than one seasonal cycle of history.
@@ -227,7 +240,7 @@ Relative paths are resolved from the directory you start the server in (normally
 | `ZC_NUM_SAMPLES` | `100` | Sample paths per forecast |
 | `ZC_LOAD_MODEL` | `true` | `false` starts the API without the model (forecast endpoints return 503) |
 | `ZC_MODEL_ID` | `birlaailabs/yug` | Hugging Face repo id, or a local folder with `config.json` + `model.safetensors` |
-| `ZC_MODEL_REVISION` | — | Optional Hugging Face revision (commit/tag) for the weights |
+| `ZC_MODEL_REVISION` | — | Optional Hugging Face revision (commit/tag) for the weights; reported as `weights_revision` in `/model/info` (`revision` is the pinned yug code commit) |
 | `ZC_CORS_ORIGINS` | `["http://localhost:3000","http://127.0.0.1:3000"]` | JSON list of browser origins allowed to call the API |
 
 `storage/` is git-ignored. Never commit it.

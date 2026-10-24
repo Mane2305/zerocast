@@ -152,6 +152,7 @@ def summarize(
     annotations: dict[str, str],
     top_n: int,
     frequency: str = "daily",
+    additive: bool = True,
 ) -> dict:
     list_events = frequency in EVENT_FREQUENCIES
     candidates = [p for p in periods if not p.inside or (list_events and p.date in events)]
@@ -166,7 +167,10 @@ def summarize(
 
     result = {"series_id": series_id, "positive_surprises": pick(True), "misses": pick(False)}
     if periods:
-        result["expected_total"] = round(sum(p.mean for p in periods), 6)
-        result["actual_total"] = round(sum(p.actual for p in periods), 6)
+        # Non-additive data (an index, a price): a sum is meaningless, so report period means.
+        combine = sum if additive else (lambda xs: sum(xs) / len(periods))
+        result["expected_total"] = round(combine([p.mean for p in periods]), 6)
+        result["actual_total"] = round(combine([p.actual for p in periods]), 6)
+        result["aggregation"] = "sum" if additive else "mean"
         result["band_coverage"] = round(float(np.mean([p.inside for p in periods])), 4)
     return result

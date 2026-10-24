@@ -34,8 +34,11 @@ CHECKS: dict[str, tuple[str, str, str]] = {
         "warning",
         f"Ignored factor columns beyond the first {MAX_FACTORS}",
     ),
+    "zero_values": ("Zero values", "info", "Kept as 0 (e.g. closed days with no sales)"),
 }
 EXCLUDING_CHECKS = {"too_short", "irregular_spacing"}
+# Listed on the series for information only; they do not turn a series into a warning.
+INFO_ONLY_CHECKS = {"zero_values"}
 
 # Frequencies with a fixed step, and calendar frequencies stepped in months.
 _FIXED_STEPS = {
@@ -244,6 +247,12 @@ def run_health_check(raw: pd.DataFrame) -> HealthResult:
     negative_series = frame.loc[negative, "series_id"].unique().tolist()
     for sid in negative_series:
         issues[sid].append("negative_values")
+    # The template cannot say whether a 0 was filled in (closed day) or is a real zero, so
+    # report every zero as information.
+    zero = frame["target"] == 0
+    zero_series = frame.loc[zero, "series_id"].unique().tolist()
+    for sid in zero_series:
+        issues[sid].append("zero_values")
 
     summaries = []
     for sid, group in frame.groupby("series_id", sort=True):
@@ -257,7 +266,7 @@ def run_health_check(raw: pd.DataFrame) -> HealthResult:
         series_issues = sorted(set(issues[sid]), key=list(CHECKS).index)
         if EXCLUDING_CHECKS & set(series_issues):
             status = "excluded"
-        elif series_issues:
+        elif set(series_issues) - INFO_ONLY_CHECKS:
             status = "warning"
         else:
             status = "ready"
@@ -311,6 +320,9 @@ def run_health_check(raw: pd.DataFrame) -> HealthResult:
     if ignored_factors:
         too_many.pop("affected_series")
     checks.append(too_many)
+    checks.append(
+        _check("zero_values", int(zero.sum()), _pct(int(zero.sum()), observed_rows), zero_series)
+    )
 
     return HealthResult(
         frame=frame,

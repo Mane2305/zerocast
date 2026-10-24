@@ -44,6 +44,7 @@ def test_writes_contract_shaped_files(tmp_path, spec, tiny_engine):
         "dataset.json",
         "factors.json",
         "forecast.json",
+        "histories.json",
         "history.json",
         "review.json",
     ]
@@ -61,6 +62,8 @@ def test_writes_contract_shaped_files(tmp_path, spec, tiny_engine):
     assert [f["factor"] for f in factor_result["factors"]] == ["steel"]
     for series in forecast["series"]:
         assert_matches_schema("SeriesForecast", series)
+    for item in json.loads((out / "manufacturing" / "histories.json").read_text()):
+        assert_matches_schema("SeriesHistory", item)
 
 
 def test_matches_frontend_loader_rules(tmp_path, spec, tiny_engine):
@@ -75,9 +78,12 @@ def test_matches_frontend_loader_rules(tmp_path, spec, tiny_engine):
     assert dataset["dataset_id"] == spec.demo_id
     assert len(history["target"]) == len(history["dates"])
     assert {0.1, 0.5, 0.9} <= set(forecast["quantile_levels"])
+    histories = json.loads((folder / "histories.json").read_text())
     series_ids = {s["series_id"] for s in dataset["series"]}
+    assert forecast["series"][0]["series_id"] == history["series_id"] == spec.primary_series
+    assert [h["series_id"] for h in histories] == [s["series_id"] for s in forecast["series"]]
     for series in forecast["series"]:
-        assert series["series_id"] == history["series_id"] and series["series_id"] in series_ids
+        assert series["series_id"] in series_ids
         assert len(series["quantiles"]) == len(forecast["quantile_levels"])
         assert all(len(row) == len(series["dates"]) for row in series["quantiles"])
         assert len(series["total_distribution"]["percentiles"]) == 101
@@ -85,6 +91,66 @@ def test_matches_frontend_loader_rules(tmp_path, spec, tiny_engine):
         assert len(grid) == 99 and all(len(row) == len(series["dates"]) for row in grid)
         assert series["last_year"] is not None and len(series["last_year"]) == len(series["dates"])
     assert forecast["series"][0]["dates"][0] == "2023-01-01T00:00:00"
+
+
+def two_series_spec(tmp_path, spec, **changes):
+    frame = monthly_frame()
+    other = frame.assign(series_id="clinker", target=frame["target"] * 1.1)
+    source = tmp_path / "two.parquet"
+    pd.concat([other, frame]).to_parquet(source, index=False)
+    return precompute_demos.DemoSpec(**{**spec.__dict__, "source": source, **changes})
+
+
+def test_every_usable_series_is_precomputed_primary_first(tmp_path, spec, tiny_engine):
+    two = two_series_spec(tmp_path, spec)
+    out = tmp_path / "out"
+    precompute_demos.precompute([two], tiny_engine, out)
+    folder = out / two.demo_id
+
+    forecast = json.loads((folder / "forecast.json").read_text())
+    review = json.loads((folder / "review.json").read_text())
+    histories = json.loads((folder / "histories.json").read_text())
+    assert [s["series_id"] for s in forecast["series"]] == ["cement", "clinker"]
+    assert [s["series_id"] for s in review["series"]] == ["cement", "clinker"]
+    assert [h["series_id"] for h in histories] == ["cement", "clinker"]
+    assert json.loads((folder / "factors.json").read_text())["series_id"] == "cement"
+
+
+def test_non_additive_demo_reports_means(tmp_path, spec, tiny_engine):
+    index = precompute_demos.DemoSpec(**{**spec.__dict__, "additive": False})
+    out = tmp_path / "out"
+    precompute_demos.precompute([index], tiny_engine, out)
+    folder = out / index.demo_id
+
+    dataset = json.loads((folder / "dataset.json").read_text())
+    series = json.loads((folder / "forecast.json").read_text())["series"][0]
+    review_series = json.loads((folder / "review.json").read_text())["series"][0]
+    assert dataset["additive"] is False
+    assert series["total_distribution"]["aggregation"] == "mean"
+    # A horizon mean stays on the scale of a single step; a total would be ~12x larger.
+    p50_total = series["total_distribution"]["percentiles"][50]
+    assert min(series["quantiles"][0]) <= p50_total <= max(series["quantiles"][-1])
+    assert review_series["aggregation"] == "mean"
+
+
+def test_factor_subset(tmp_path, spec, tiny_engine):
+    frame = monthly_frame().assign(coal=lambda f: f["steel"] * 0.5 + 3)
+    source = tmp_path / "factors.parquet"
+    frame.to_parquet(source, index=False)
+    subset = precompute_demos.DemoSpec(**{**spec.__dict__, "source": source, "factors": ("coal",)})
+    precompute_demos.precompute([subset], tiny_engine, tmp_path / "out")
+    result = json.loads((tmp_path / "out" / subset.demo_id / "factors.json").read_text())
+    assert [f["factor"] for f in result["factors"]] == ["coal"]
+
+    unknown = precompute_demos.DemoSpec(**{**spec.__dict__, "factors": ("oil",)})
+    with pytest.raises(ValueError, match="oil"):
+        precompute_demos.precompute([unknown], tiny_engine, tmp_path / "out2")
+
+
+def test_cement_demo_spec_matches_review_fixes():
+    cement = next(d for d in precompute_demos.DEMOS if d.demo_id == "manufacturing")
+    assert cement.additive is False
+    assert cement.factors == ("steel", "electricity", "coal")
 
 
 def test_is_deterministic(tmp_path, spec, tiny_engine):

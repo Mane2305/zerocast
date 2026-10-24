@@ -5,8 +5,9 @@ data/scripts (B5), and writes, matching frontend/src/lib/load-demo.ts:
 
     <out>/<demo_id>/dataset.json    Dataset
     <out>/<demo_id>/history.json    SeriesHistory of the demo's primary series
-    <out>/<demo_id>/forecast.json   ForecastResult for the primary series
-    <out>/<demo_id>/review.json     ReviewResult (year in review) for the primary series
+    <out>/<demo_id>/histories.json  [SeriesHistory] for every forecast series, primary first
+    <out>/<demo_id>/forecast.json   ForecastResult for every usable series, primary first
+    <out>/<demo_id>/review.json     ReviewResult (year in review) for the same series
     <out>/<demo_id>/factors.json    FactorResult for the primary series (if it has factors)
 
     cd backend
@@ -47,6 +48,10 @@ class DemoSpec:
     primary_series: str
     horizon: int
     factor_horizon: int = 28
+    # False for an index or a price: horizon results describe the mean, not the total.
+    additive: bool = True
+    # Factor columns to check; None checks every factor column in the dataset.
+    factors: tuple[str, ...] | None = None
 
 
 DEMOS = (
@@ -68,6 +73,8 @@ DEMOS = (
         primary_series="cement",
         horizon=12,
         factor_horizon=6,
+        additive=False,
+        factors=("steel", "electricity", "coal"),
     ),
 )
 
@@ -78,6 +85,11 @@ def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[s
     statuses = {s["series_id"]: s["status"] for s in health.series}
     if statuses.get(spec.primary_series, "excluded") == "excluded":
         raise ValueError(f"{spec.demo_id}: primary series {spec.primary_series!r} is not usable")
+    series_ids = [spec.primary_series] + [
+        sid
+        for sid, status in statuses.items()
+        if status != "excluded" and sid != spec.primary_series
+    ]
 
     record = DatasetRecord(
         dataset_id=spec.demo_id,
@@ -91,33 +103,43 @@ def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[s
             "date_range": health.date_range,
             "series": health.series,
             "health": health.report,
+            "additive": spec.additive,
         },
     )
-    history = history_from_frame(health.frame, spec.primary_series, health.factor_columns)
-    values = series_values(health.frame, spec.primary_series)
-    forecast = forecast_series(engine, values, health.frequency, spec.horizon, SEED)
-    # Demos must always show the capacity-risk grid and the last-year overlay.
-    if not forecast["step_exceedance_grid"]["percentiles"] or forecast["last_year"] is None:
-        raise ValueError(
-            f"{spec.demo_id}: needs at least one year of history for the last-year overlay"
+    histories, forecasts, reviews = [], [], []
+    for sid in series_ids:
+        values = series_values(health.frame, sid)
+        forecast = forecast_series(
+            engine, values, health.frequency, spec.horizon, SEED, spec.additive
         )
+        # Demos must always show the capacity-risk grid and the last-year overlay.
+        if not forecast["step_exceedance_grid"]["percentiles"] or forecast["last_year"] is None:
+            raise ValueError(
+                f"{spec.demo_id}/{sid}: needs at least one year of history for the last-year "
+                "overlay"
+            )
+        histories.append(history_from_frame(health.frame, sid, health.factor_columns))
+        forecasts.append({"series_id": sid, **forecast})
+        reviews.append(review_series(spec, sid, values, health.frequency, engine))
     files = {
         "dataset": dataset_response(record),
-        "review": review_demo(spec, values, health.frequency, engine),
-        "history": history,
-        "forecast": {
-            "quantile_levels": engine.info()["quantile_levels"],
-            "series": [{"series_id": spec.primary_series, **forecast}],
-        },
+        "review": {"series": reviews},
+        "history": histories[0],
+        "histories": histories,
+        "forecast": {"quantile_levels": engine.info()["quantile_levels"], "series": forecasts},
     }
-    if health.factor_columns:
-        files["factors"] = factor_demo(
-            spec, health.frame, health.factor_columns, health.frequency, engine
-        )
+    columns = list(spec.factors) if spec.factors is not None else health.factor_columns
+    missing = sorted(set(columns) - set(health.factor_columns))
+    if missing:
+        raise ValueError(f"{spec.demo_id}: factors not in the dataset: {missing}")
+    if columns:
+        files["factors"] = factor_demo(spec, health.frame, columns, health.frequency, engine)
     return files
 
 
-def review_demo(spec: DemoSpec, values: pd.Series, frequency: str, engine: YugEngine) -> dict:
+def review_series(
+    spec: DemoSpec, series_id: str, values: pd.Series, frequency: str, engine: YugEngine
+) -> dict:
     lookback, step = review.default_window(frequency)
 
     def forecaster(context, horizon, seed):
@@ -126,7 +148,7 @@ def review_demo(spec: DemoSpec, values: pd.Series, frequency: str, engine: YugEn
 
     periods = review.replay(values, lookback, step, forecaster, seed=SEED)
     events = review.calendar_events([p.date for p in periods], frequency, spec.holiday_country)
-    return {"series": [review.summarize(spec.primary_series, periods, events, {}, 5, frequency)]}
+    return review.summarize(series_id, periods, events, {}, 5, frequency, spec.additive)
 
 
 def factor_demo(

@@ -11,6 +11,7 @@ need the sample paths (quantiles do not add). ``_sample_paths`` mirrors the univ
 the same seed, so an upstream change that breaks this fails loudly.
 """
 
+import json
 import logging
 import threading
 import time
@@ -18,6 +19,7 @@ from collections import deque
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, distribution
 from typing import Any, TypeVar
 
 import numpy as np
@@ -230,9 +232,25 @@ class YugEngine:
             "num_samples": self.num_samples,
             "latency_ms": self.latency_stats(),
         }
-        if self.revision:
-            info["revision"] = self.revision
+        code = yug_commit()
+        if code:
+            info["revision"] = code
+        info["weights_revision"] = self.revision
         return info
+
+
+def yug_commit() -> str | None:
+    """Commit of the installed yug package (pinned in pyproject.toml), or its version."""
+    try:
+        dist = distribution("yug")
+    except PackageNotFoundError:
+        return None
+    direct_url = dist.read_text("direct_url.json")
+    if direct_url:
+        commit = json.loads(direct_url).get("vcs_info", {}).get("commit_id")
+        if commit:
+            return commit
+    return dist.version
 
 
 def _sample_paths(

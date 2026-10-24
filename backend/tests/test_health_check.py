@@ -49,6 +49,7 @@ def test_clean_dataset_is_ready_with_all_checks_zero():
         "constant_series",
         "irregular_spacing",
         "too_many_factors",
+        "zero_values",
     ]
     assert all(c["count"] == 0 and c["severity"] == "info" for c in result.report["checks"])
     assert {s["status"] for s in result.series} == {"ready"}
@@ -208,3 +209,15 @@ def test_unusable_files_raise(mutate, code):
     with pytest.raises(DatasetError) as info:
         validate_template(mutate(make_frame({"A": good()})))
     assert info.value.code == code
+
+
+def test_zero_values_are_reported_as_info_without_downgrading_the_series():
+    closed_saturdays = [0.0 if i % 7 == 5 else 10.0 + i for i in range(40)]
+    result = run_health_check(make_frame({"A": closed_saturdays, "B": good(offset=5)}))
+
+    zero = check(result, "zero_values")
+    assert zero["severity"] == "info" and zero["count"] == 5
+    assert zero["affected_series"] == ["A"]
+    assert zero["action_taken"].startswith("Kept as 0")
+    assert series(result, "A")["status"] == "ready"
+    assert "zero_values" in series(result, "A")["issues"]

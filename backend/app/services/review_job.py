@@ -8,6 +8,7 @@ from app.engine import YugEngine
 from app.jobs import Handler, Progress
 from app.repository import Repository
 from app.services import review
+from app.services.datasets import is_additive
 from app.services.forecast import forecast_paths, load_series, ready_engine, series_values
 from app.storage import Storage
 
@@ -41,7 +42,11 @@ def make_review_handler(
             events = review.calendar_events(
                 [p.date for p in periods], frequency, record.holiday_country
             )
-            results.append(review.summarize(sid, periods, events, notes[sid], top_n, frequency))
+            results.append(
+                review.summarize(
+                    sid, periods, events, notes[sid], top_n, frequency, is_additive(record)
+                )
+            )
         return {"series": results}
 
     return handle

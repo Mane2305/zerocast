@@ -11,7 +11,7 @@ from app.engine.summaries import step_exceedance_grid, total_distribution
 from app.jobs import Handler, JobFailed, Progress
 from app.repository import Repository
 from app.services import insights
-from app.services.datasets import load_frame
+from app.services.datasets import is_additive, load_frame
 from app.services.health_check import format_date, future_dates
 from app.storage import Storage
 
@@ -78,8 +78,14 @@ def forecast_paths(
 
 
 def forecast_series(
-    engine: YugEngine, history: pd.Series, frequency: str, horizon: int, seed: int
+    engine: YugEngine,
+    history: pd.Series,
+    frequency: str,
+    horizon: int,
+    seed: int,
+    additive: bool = True,
 ) -> dict[str, Any]:
+    aggregation = "sum" if additive else "mean"
     quantiles, paths, latency_ms = forecast_paths(
         engine, history.to_numpy(), horizon, frequency, seed
     )
@@ -89,7 +95,10 @@ def forecast_series(
         "dates": [format_date(d) for d in future],
         "quantiles": round_sig(quantiles),
         "last_year": insights.last_year_values(history, future, frequency),
-        "total_distribution": {"percentiles": round_sig(total_distribution(paths))},
+        "total_distribution": {
+            "percentiles": round_sig(total_distribution(paths, aggregation)),
+            "aggregation": aggregation,
+        },
         "step_exceedance_grid": {"percentiles": round_sig(step_exceedance_grid(paths))},
         "risk": insights.risk_metrics(quantiles, levels),
         "latency_ms": round(latency_ms, 2),
@@ -109,7 +118,9 @@ def make_forecast_handler(
         for i, sid in enumerate(series_ids):
             progress(100.0 * i / n, f"Forecasting series {i + 1} of {n}")
             history = series_values(frame, sid)
-            result = forecast_series(yug, history, frequency, params["horizon"], params["seed"])
+            result = forecast_series(
+                yug, history, frequency, params["horizon"], params["seed"], is_additive(record)
+            )
             results.append({"series_id": sid, **result})
         return {"quantile_levels": yug.info()["quantile_levels"], "series": results}
 

@@ -15,6 +15,7 @@ CheckId = Literal[
     "constant_series",
     "irregular_spacing",
     "too_many_factors",
+    "zero_values",
 ]
 
 
@@ -40,6 +41,7 @@ class LatencyStats(BaseModel):
 class ModelInfo(BaseModel):
     name: str
     revision: str | None = None
+    weights_revision: str | None = None
     parameters: int
     quantile_levels: list[float]
     max_context: int
@@ -88,6 +90,7 @@ class Dataset(BaseModel):
     holiday_country: str | None = None
     series_count: int
     factor_columns: list[str]
+    additive: bool
     date_range: DateRange | None = None
     series: list[SeriesSummary] | None = None
     health: HealthReport

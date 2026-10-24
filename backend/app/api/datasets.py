@@ -54,6 +54,7 @@ async def create_dataset(
     storage: Annotated[Storage, Depends(get_storage)],
     name: Annotated[str | None, Form()] = None,
     holiday_country: Annotated[str | None, Form()] = None,
+    additive: Annotated[bool, Form()] = True,
 ) -> dict:
     if holiday_country is not None:
         holiday_country = holiday_country.strip().upper() or None
@@ -65,7 +66,7 @@ async def create_dataset(
     display_name = (name or "").strip() or PurePath(file.filename or "dataset").stem
     try:
         record = await run_in_threadpool(
-            datasets.ingest, data, display_name, holiday_country, repository, storage
+            datasets.ingest, data, display_name, holiday_country, repository, storage, additive
         )
     except DatasetError as exc:
         raise ApiError(422, exc.code, exc.message, exc.details) from exc

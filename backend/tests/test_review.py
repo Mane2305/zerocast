@@ -189,3 +189,17 @@ def test_monthly_lists_only_band_breaches_but_tags_events():
 
     assert [e["date"] for e in result["positive_surprises"]] == [dates[-12].isoformat()]
     assert result["positive_surprises"][0]["calendar_events"]  # January: Republic Day
+
+
+def test_non_additive_totals_are_period_means():
+    history = daily_series()
+    history[history.index[-5]] = 300.0
+    lookback, step = review.default_window("daily")
+    periods = review.replay(history, lookback, step, flat_forecaster())
+
+    result = review.summarize("A", periods, {}, {}, 5, "daily", additive=False)
+
+    assert result["aggregation"] == "mean"
+    assert result["actual_total"] == pytest.approx((364 * 100 + 200) / 364)
+    assert result["expected_total"] == pytest.approx(100)
+    assert run(history)["aggregation"] == "sum"
