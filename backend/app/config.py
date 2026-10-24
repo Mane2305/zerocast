@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     storage_dir: Path = Path("./storage/files")
     device: Literal["cpu", "cuda"] = "cpu"
     num_samples: int = Field(default=100, ge=1)
+    load_model: bool = True
+    model_id: str = "birlaailabs/yug"
+    model_revision: str | None = None
 
 
 @lru_cache

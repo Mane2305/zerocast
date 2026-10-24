@@ -26,6 +26,33 @@ Check it is up: `curl http://localhost:8000/health` →
 `{"status":"ok","model_loaded":false,"device":"cpu","version":"0.1.0"}`.
 Interactive docs: http://localhost:8000/docs.
 
+## Model engine (B2)
+
+`app/engine/` is the only package that imports `yug` (pinned to PR #14, commit `4b1de57`).
+
+- The model loads once at startup on a dedicated worker thread. The API is up meanwhile:
+  `/health` says `degraded` / `model_loaded: false` until loading finishes, then `ok`.
+  `/model/info` returns 503 (`model_loading`, `model_failed` or `model_disabled`) until then.
+- Every model call runs on that one thread (upstream issue #9: the pipeline is not thread-safe).
+- Inputs are sanitised per YUG_NOTES: NumPy only, `(1, T)` squeezed to 1-D, `±inf` → NaN, and
+  our frequency names map to `h/D/W/M/Q/A/U` (never `Y` or `ms`).
+- `YugEngine.forecast(context, horizon, frequency, seed=0)` returns per-step quantiles **and**
+  the `(num_samples, horizon)` sample paths. `app/engine/summaries.py` turns paths into the
+  horizon-total percentiles (0..100) and the per-step exceedance grid (1..99).
+- The path rollout copies Yug's private `_predict_one` / `_rollout_cached`.
+  `tests/test_engine.py` asserts our quantiles equal `pipeline.predict` for the same seed. If
+  you bump the Yug pin and that test fails, the copy must be updated.
+- Tests use a tiny random-weight model (`app/engine/testing.py`). No download needed.
+
+Manual check with the real weights (first run downloads ~1.1 GB into the Hugging Face cache,
+outside this repo):
+
+```bash
+uv run python -m scripts.smoke_model
+```
+
+Measured on the owner's laptop (CPU, 100 samples): horizon 28 ≈ 0.1 s, horizon 256 ≈ 1.5 s.
+
 ## Datasets (B3)
 
 ```bash
@@ -65,6 +92,9 @@ Relative paths are resolved from the directory you start the server in (normally
 | `ZC_STORAGE_DIR` | `./storage/files` | Folder for uploaded files when `ZC_STORAGE=local` |
 | `ZC_DEVICE` | `cpu` | `cpu` or `cuda` for the model |
 | `ZC_NUM_SAMPLES` | `100` | Sample paths per forecast |
+| `ZC_LOAD_MODEL` | `true` | `false` starts the API without the model (forecast endpoints return 503) |
+| `ZC_MODEL_ID` | `birlaailabs/yug` | Hugging Face repo id, or a local folder with `config.json` + `model.safetensors` |
+| `ZC_MODEL_REVISION` | — | Optional Hugging Face revision (commit/tag) for the weights |
 
 `storage/` is git-ignored. Never commit it.
 
@@ -78,7 +108,10 @@ app/
   repository.py  Repository: datasets, jobs, annotations → plain dataclasses
   storage.py     Storage interface (put/get) + LocalStorage
   schemas.py     Pydantic response models mirroring the contract
-  engine/        Yug engine (task B2): the only module allowed to import yug
+  engine/        YugEngine, path summaries, tiny test model: the only package importing yug
+  api/           routers (datasets, model)
+  services/      pure logic: health check, dataset ingestion
+scripts/         manual scripts (smoke_model)
 tests/
   contract.py    assert_matches_schema(): validates payloads against openapi.yaml
 ```
@@ -87,4 +120,4 @@ tests/
 
 - Tables are created with `create_all` at startup. There are no migrations yet, so if the
   schema changes during Phase 1, delete `storage/zerocast.db`.
-- `/health` always reports `model_loaded: false` until the Yug engine lands (B2).
+- `/model/info` returns 503 while the model is loading. The contract only lists 200 for it.

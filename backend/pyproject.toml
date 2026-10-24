@@ -13,6 +13,7 @@ dependencies = [
     "pyarrow>=26.0.0",
     "python-multipart>=0.0.32",
     "numpy>=2.4.6",
+    "yug",
 ]
 
 [dependency-groups]
@@ -26,6 +27,9 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+yug = { git = "https://github.com/birla-ai-labs/yug", rev = "4b1de5776b6650cf0fd88e55943036cb9ddb8709" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

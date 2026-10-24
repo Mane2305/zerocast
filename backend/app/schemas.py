@@ -30,6 +30,25 @@ class Health(BaseModel):
     version: str | None = None
 
 
+class LatencyStats(BaseModel):
+    p50: float | None = None
+    p95: float | None = None
+    count: int | None = None
+
+
+class ModelInfo(BaseModel):
+    name: str
+    revision: str | None = None
+    parameters: int
+    quantile_levels: list[float]
+    max_context: int
+    block_size: int
+    license: str
+    device: str | None = None
+    num_samples: int | None = None
+    latency_ms: LatencyStats | None = None
+
+
 class HealthCheck(BaseModel):
     id: CheckId
     label: str

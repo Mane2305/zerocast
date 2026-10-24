@@ -2,12 +2,17 @@ from app import __version__
 from tests.contract import assert_matches_schema
 
 
-def test_health_returns_ok(client):
+def test_health_degraded_without_model(client):
     response = client.get("/health")
 
     assert response.status_code == 200
     body = response.json()
-    assert body == {"status": "ok", "model_loaded": False, "device": "cpu", "version": __version__}
+    assert body == {
+        "status": "degraded",
+        "model_loaded": False,
+        "device": "cpu",
+        "version": __version__,
+    }
 
 
 def test_health_matches_contract(client):
