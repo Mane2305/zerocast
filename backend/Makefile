@@ -23,4 +23,4 @@ run:
 # Needs the raw files in ../data/raw (see ../data/scripts/README.md).
 demo-data:
 	$(UV) run python ../data/scripts/build_cement.py
-	$(UV) run python ../data/scripts/build_favorita.py
+	$(UV) run python ../data/scripts/build_online_retail.py

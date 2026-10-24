@@ -99,12 +99,16 @@ curl http://localhost:8000/jobs/<job_id>     # poll until status is succeeded or
   quantiles, `total_distribution` (percentiles 0..100 of the horizon total from sample paths),
   `step_exceedance_grid` (per-step percentiles 1..99), `last_year` and `risk`. Numbers are
   rounded to 6 significant digits.
+- If a series' history has no negative values, quantiles and sample paths are clipped at 0
+  (sales and production cannot go below zero). Clipping is monotone, so quantiles and totals
+  stay consistent. Forecast and year-in-review results both use this; the factor check's
+  backtest does not (both arms are scored on the raw model output).
 - `last_year` is the actual value one cycle earlier: 52 weeks for hourly/daily/weekly (keeps
   weekdays aligned), 12 months for monthly/quarterly/yearly. It is `null` when none of those
   dates exist in the history.
 - Risk thresholds (`app/services/insights.py`), all product choices to confirm:
-  - `uncertainty_score` is the mean of (P90 − P10)/|P50| over the horizon; steps with P50 = 0
-    are skipped.
+  - `uncertainty_score` is sum(P90 − P10) / sum|P50| over the horizon, so near-zero steps
+    (closed days) cannot dominate it.
   - Labels: `predictable` below 0.3 (about ±15%), `volatile` from 0.6 (about ±30%),
     `moderate` in between.
   - `risk_direction` is `upside`/`downside` when one side of the band is on average 1.5× wider
@@ -193,7 +197,8 @@ uv run python -m scripts.precompute_demos --only manufacturing --out <some dir>
 
 - Writes `<out>/<demo_id>/{dataset,history,forecast}.json` in the contract shapes (Dataset,
   SeriesHistory, ForecastResult), matching what `frontend/src/lib/load-demo.ts` checks.
-- Demo ids are `retail` (Favorita store 44, primary series `GROCERY I`, horizon 28) and
+- Demo ids are `retail` (UCI Online Retail II, 5 product families, primary series `BAGS`,
+  horizon 14, so it stops before the Christmas shutdown) and
   `manufacturing` (cement, horizon 12). They are separate from the frontend's synthetic
   `*-mock` fixtures.
 - `dataset.json` lists every series. `history.json` and `forecast.json` hold only the primary
@@ -205,7 +210,7 @@ uv run python -m scripts.precompute_demos --only manufacturing --out <some dir>
 - **Before writing into `frontend/public/demo`:** that folder belongs to the frontend
   (CLAUDE.md rule 1), and both datasets' licences are unconfirmed (see
   `data/scripts/README.md`). Get the owner's go-ahead first. The owner approved writing
-  `manufacturing/` there on 2026-10-24.
+  `retail/` and `manufacturing/` there on 2026-10-24.
 
 ## Configuration
 

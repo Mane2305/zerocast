@@ -32,9 +32,11 @@ def test_uncertainty_score_and_labels():
     assert insights.risk_metrics(wide, LEVELS)["uncertainty_label"] == "volatile"
 
 
-def test_uncertainty_score_ignores_zero_median_steps():
-    q = band([0, 100, 100], 5, 5, horizon=3)
-    assert insights.uncertainty_score(q, LEVELS) == pytest.approx(0.1)
+def test_uncertainty_score_is_robust_to_near_zero_steps():
+    # A closed day (P50 ~ 0) must not blow the score up: widths and medians are summed.
+    q = band([0.01, 100, 100], 5, 5, horizon=3)
+    assert insights.uncertainty_score(q, LEVELS) == pytest.approx(30 / 200.01)
+    assert insights.uncertainty_score(band(0, 0, 0), LEVELS) == 0.0
 
 
 @pytest.mark.parametrize(

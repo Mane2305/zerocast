@@ -29,7 +29,7 @@ from app.main import build_engine
 from app.repository import DatasetRecord
 from app.services import factors, review
 from app.services.datasets import dataset_response, history_from_frame
-from app.services.forecast import forecast_series, series_values
+from app.services.forecast import forecast_paths, forecast_series, series_values
 from app.services.health_check import run_health_check
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -52,11 +52,13 @@ class DemoSpec:
 DEMOS = (
     DemoSpec(
         demo_id="retail",
-        name="Favorita store sales (store 44, Quito)",
-        source=PROCESSED / "retail_favorita.parquet",
-        holiday_country="EC",
-        primary_series="GROCERY I",
-        horizon=28,
+        name="UK online gift retailer, units sold by product family (UCI Online Retail II)",
+        source=PROCESSED / "retail_online.parquet",
+        holiday_country="GB",
+        primary_series="BAGS",
+        # The data ends on Fri 9 Dec 2011; 14 days stops before the Christmas shutdown,
+        # which Yug cannot anticipate from two seasons of history.
+        horizon=14,
     ),
     DemoSpec(
         demo_id="manufacturing",
@@ -119,8 +121,8 @@ def review_demo(spec: DemoSpec, values: pd.Series, frequency: str, engine: YugEn
     lookback, step = review.default_window(frequency)
 
     def forecaster(context, horizon, seed):
-        out = engine.forecast(context, horizon, frequency, seed=seed)
-        return out.quantiles, out.paths
+        quantiles, paths, _ = forecast_paths(engine, context, horizon, frequency, seed)
+        return quantiles, paths
 
     periods = review.replay(values, lookback, step, forecaster, seed=SEED)
     events = review.calendar_events([p.date for p in periods], frequency, spec.holiday_country)

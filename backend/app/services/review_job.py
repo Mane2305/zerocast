@@ -8,7 +8,7 @@ from app.engine import YugEngine
 from app.jobs import Handler, Progress
 from app.repository import Repository
 from app.services import review
-from app.services.forecast import load_series, ready_engine, series_values
+from app.services.forecast import forecast_paths, load_series, ready_engine, series_values
 from app.storage import Storage
 
 
@@ -30,8 +30,8 @@ def make_review_handler(
             notes[note.series_id][note.date] = note.text
 
         def forecaster(context, horizon, seed):
-            out = yug.forecast(context, horizon, frequency, seed=seed)
-            return out.quantiles, out.paths
+            quantiles, paths, _ = forecast_paths(yug, context, horizon, frequency, seed)
+            return quantiles, paths
 
         results = []
         n = len(series_ids)

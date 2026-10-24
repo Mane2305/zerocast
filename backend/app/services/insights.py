@@ -9,7 +9,8 @@ import pandas as pd
 
 from app.services.health_check import one_cycle_earlier
 
-# Uncertainty score = mean (P90 - P10) / |P50|. A score of 0.3 is a band of about ±15%.
+# Uncertainty score = sum (P90 - P10) / sum |P50| over the horizon (PRODUCT.md §4), so a few
+# near-zero steps (closed days) cannot dominate it. A score of 0.3 is a band of about ±15%.
 PREDICTABLE_BELOW = 0.3
 VOLATILE_FROM = 0.6
 # Trust horizon: steps until the relative band width first exceeds this (about ±25%).
@@ -31,9 +32,9 @@ def relative_width(quantiles: np.ndarray, levels: list[float]) -> np.ndarray:
 
 
 def uncertainty_score(quantiles: np.ndarray, levels: list[float]) -> float:
-    width = relative_width(quantiles, levels)
-    finite = width[np.isfinite(width)]
-    return float(finite.mean()) if finite.size else 0.0
+    p10, p50, p90 = (_level(quantiles, levels, q) for q in (0.1, 0.5, 0.9))
+    scale = float(np.abs(p50).sum())
+    return float((p90 - p10).sum()) / scale if scale > 0 else 0.0
 
 
 def uncertainty_label(score: float) -> str:

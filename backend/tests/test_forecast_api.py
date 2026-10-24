@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from app.services.forecast import forecast_paths
 from tests.contract import assert_matches_schema
 
 from .conftest import TINY_SAMPLES
@@ -158,3 +159,23 @@ def test_running_job_has_no_result_field_set(model_client):
 
 def test_tiny_samples_used(model_client):
     assert model_client.app.state.engine.num_samples == TINY_SAMPLES
+
+
+def test_forecasts_of_non_negative_series_are_clipped_at_zero(tiny_engine):
+    rng = np.random.default_rng(4)
+    sales = np.where(np.arange(120) % 7 == 5, 0.0, rng.uniform(0, 10, 120))  # closed Saturdays
+
+    quantiles, paths, _ = forecast_paths(tiny_engine, sales, 14, "daily", seed=0)
+    raw = tiny_engine.forecast(sales, 14, "daily", seed=0)
+
+    assert quantiles.min() >= 0 and paths.min() >= 0
+    np.testing.assert_array_equal(quantiles, np.maximum(raw.quantiles, 0))
+    np.testing.assert_array_equal(paths, np.maximum(raw.paths, 0))
+
+
+def test_series_with_negative_history_are_not_clipped(tiny_engine):
+    profit = np.sin(np.arange(120) / 5.0) * 10  # genuinely goes below zero
+    quantiles, paths, _ = forecast_paths(tiny_engine, profit, 14, "daily", seed=0)
+    raw = tiny_engine.forecast(profit, 14, "daily", seed=0)
+    np.testing.assert_array_equal(quantiles, raw.quantiles)
+    np.testing.assert_array_equal(paths, raw.paths)

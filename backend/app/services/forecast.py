@@ -63,20 +63,36 @@ def series_values(frame: pd.DataFrame, series_id: str, column: str = "target") -
     return pd.Series(rows[column].to_numpy(dtype=np.float64), index=pd.DatetimeIndex(rows["date"]))
 
 
+def forecast_paths(
+    engine: YugEngine, context: np.ndarray, horizon: int, frequency: str, seed: int
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """(quantiles, paths, latency_ms). Clipped at 0 when the history has no negative values:
+    sales and production cannot go below zero. Clipping is monotone, so the quantiles of the
+    clipped paths are the clipped quantiles and totals stay consistent with them."""
+    out = engine.forecast(context, horizon, frequency, seed=seed)
+    quantiles, paths = out.quantiles, out.paths
+    observed = context[np.isfinite(context)]
+    if observed.size and observed.min() >= 0:
+        quantiles, paths = np.maximum(quantiles, 0), np.maximum(paths, 0)
+    return quantiles, paths, out.latency_ms
+
+
 def forecast_series(
     engine: YugEngine, history: pd.Series, frequency: str, horizon: int, seed: int
 ) -> dict[str, Any]:
-    out = engine.forecast(history.to_numpy(), horizon, frequency, seed=seed)
+    quantiles, paths, latency_ms = forecast_paths(
+        engine, history.to_numpy(), horizon, frequency, seed
+    )
     levels = engine.info()["quantile_levels"]
     future = future_dates(history.index[-1], frequency, horizon)
     return {
         "dates": [format_date(d) for d in future],
-        "quantiles": round_sig(out.quantiles),
+        "quantiles": round_sig(quantiles),
         "last_year": insights.last_year_values(history, future, frequency),
-        "total_distribution": {"percentiles": round_sig(total_distribution(out.paths))},
-        "step_exceedance_grid": {"percentiles": round_sig(step_exceedance_grid(out.paths))},
-        "risk": insights.risk_metrics(out.quantiles, levels),
-        "latency_ms": round(out.latency_ms, 2),
+        "total_distribution": {"percentiles": round_sig(total_distribution(paths))},
+        "step_exceedance_grid": {"percentiles": round_sig(step_exceedance_grid(paths))},
+        "risk": insights.risk_metrics(quantiles, levels),
+        "latency_ms": round(latency_ms, 2),
     }
 
 

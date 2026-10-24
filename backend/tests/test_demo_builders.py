@@ -23,6 +23,7 @@ def load_script(name: str):
 
 cement = load_script("build_cement")
 favorita = load_script("build_favorita")
+online_retail = load_script("build_online_retail")
 
 
 def write_core_index_xlsx(path: Path, months: int = 40) -> None:
@@ -159,3 +160,63 @@ def test_outputs_roundtrip_through_parquet(tmp_path):
     back = pd.read_parquet(tmp_path / "out.parquet")
     pd.testing.assert_frame_equal(back, frame)
     assert np.isfinite(back["target"]).all()
+
+
+def online_retail_rows(days: int = 40) -> pd.DataFrame:
+    """Mimic the UCI workbook: one row per invoice line, no sales on Saturdays."""
+    rows = []
+    for i, day in enumerate(pd.date_range("2010-12-01", periods=days, freq="D")):
+        if day.day_of_week == 5:
+            continue
+        stamp = day + pd.Timedelta(hours=10)
+        for description, qty, price in [
+            ("JUMBO BAG RED RETROSPOT", 10 + i, 2.0),
+            ("LUNCH BAG BLACK SKULL", 5, 1.5),
+            ("WHITE HANGING HEART T-LIGHT HOLDER", 6, 2.55),
+            ("CHRISTMAS CANDLE HOLDER", 3, 4.0),  # Christmas wins over candles
+            ("BIRTHDAY CARD, RETRO SPOT", 12, 0.42),
+            ("HOME SWEET HOME MUG", 4, 2.95),
+            ("PAPER CRAFT, LITTLE BIRDIE", 99, 0.1),  # no family: dropped
+        ]:
+            rows.append([f"{500000 + i}", description, qty, stamp, price])
+        rows.append([f"C{600000 + i}", "JUMBO BAG RED RETROSPOT", -50, stamp, 2.0])
+    return pd.DataFrame(rows, columns=online_retail.COLUMNS)
+
+
+@pytest.mark.parametrize("as_zip", [False, True])
+def test_online_retail_builder_outputs_template(tmp_path, as_zip):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    workbook = raw / online_retail.WORKBOOK
+    with pd.ExcelWriter(workbook) as writer:  # two sheets, like the source
+        online_retail_rows().iloc[:100].to_excel(writer, sheet_name="Year 1", index=False)
+        online_retail_rows().iloc[100:].to_excel(writer, sheet_name="Year 2", index=False)
+    if as_zip:
+        with zipfile.ZipFile(raw / "online_retail_ii.zip", "w") as zf:
+            zf.write(workbook, online_retail.WORKBOOK)
+        workbook.unlink()
+
+    frame = online_retail.build(online_retail.read_source(raw))
+
+    assert set(frame["series_id"]) == set(online_retail.FAMILIES)
+    assert list(frame.columns) == ["date", "series_id", "target", "avg_unit_price", "holiday"]
+    bags = frame[frame["series_id"] == "BAGS"].set_index("date")
+    assert bags.loc["2010-12-01", "target"] == 15  # 10 jumbo + 5 lunch; cancellation dropped
+    assert bags.loc["2010-12-04", "target"] == 0  # Saturday: no trading, recorded as 0
+    assert bags.loc["2010-12-04", "avg_unit_price"] == bags.loc["2010-12-03", "avg_unit_price"]
+    christmas = frame[frame["series_id"] == "CHRISTMAS"].set_index("date")
+    assert christmas.loc["2010-12-01", "target"] == 3
+    assert frame.set_index("date").loc["2010-12-27", "holiday"].eq(1).all()
+
+    health = run_health_check(frame)
+    assert health.frequency == "daily" and health.report["ready"] is True
+    assert health.factor_columns == ["avg_unit_price", "holiday"]
+
+
+def test_online_retail_builder_errors(tmp_path):
+    with pytest.raises(FileNotFoundError, match=online_retail.WORKBOOK):
+        online_retail.read_source(tmp_path)
+    no_mugs = online_retail_rows()
+    no_mugs = no_mugs[~no_mugs["Description"].str.contains("MUG")]
+    with pytest.raises(ValueError, match="MUGS"):
+        online_retail.build(no_mugs)
