@@ -81,8 +81,9 @@ def _nullable(values: pd.Series) -> list[float | None]:
     return [None if pd.isna(v) else float(v) for v in values]
 
 
-def series_history(record: DatasetRecord, storage: Storage, series_id: str) -> dict | None:
-    frame = load_frame(record, storage)
+def history_from_frame(
+    frame: pd.DataFrame, series_id: str, factor_columns: list[str]
+) -> dict | None:
     rows = frame[frame["series_id"] == series_id].sort_values("date")
     if rows.empty:
         return None
@@ -91,7 +92,11 @@ def series_history(record: DatasetRecord, storage: Storage, series_id: str) -> d
         "dates": [format_date(d) for d in rows["date"]],
         "target": _nullable(rows["target"]),
     }
-    factors = record.meta["factor_columns"]
-    if factors:
-        history["factors"] = {name: _nullable(rows[name]) for name in factors}
+    if factor_columns:
+        history["factors"] = {name: _nullable(rows[name]) for name in factor_columns}
     return history
+
+
+def series_history(record: DatasetRecord, storage: Storage, series_id: str) -> dict | None:
+    frame = load_frame(record, storage)
+    return history_from_frame(frame, series_id, record.meta["factor_columns"])

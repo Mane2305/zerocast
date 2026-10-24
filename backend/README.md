@@ -119,6 +119,27 @@ curl http://localhost:8000/jobs/<job_id>     # poll until status is succeeded or
 See `data/scripts/README.md` for sources, download steps and licence notes. `make lint`
 also covers `data/scripts/`.
 
+## Precomputed demos (B6)
+
+```bash
+make demo-data                                             # B5: build the Parquet inputs
+uv run python -m scripts.precompute_demos --out ../frontend/public/demo   # real weights
+uv run python -m scripts.precompute_demos --only manufacturing --out <some dir>
+```
+
+- Writes `<out>/<demo_id>/{dataset,history,forecast}.json` in the contract shapes (Dataset,
+  SeriesHistory, ForecastResult), matching what `frontend/src/lib/load-demo.ts` checks.
+- Demo ids are `retail` (Favorita store 44, primary series `GROCERY I`, horizon 28) and
+  `manufacturing` (cement, horizon 12). They are separate from the frontend's synthetic
+  `*-mock` fixtures.
+- `dataset.json` lists every series. `history.json` and `forecast.json` hold only the primary
+  series, because the frontend loader currently expects exactly one forecast series per demo.
+- Forecasts use seed 0, so reruns are identical apart from `latency_ms`.
+- Review and factor results will be added when B7/B8 land.
+- **Before writing into `frontend/public/demo`:** that folder belongs to the frontend
+  (CLAUDE.md rule 1), and both datasets' licences are unconfirmed (see
+  `data/scripts/README.md`). Get the owner's go-ahead first.
+
 ## Configuration
 
 All settings come from environment variables (or a git-ignored `backend/.env` file).
@@ -152,7 +173,7 @@ app/
   api/           routers (datasets, model, jobs)
   jobs.py        JobRunner interface + in-process runner
   services/      health check, dataset ingestion, insights, forecast job
-scripts/         manual scripts (smoke_model)
+scripts/         manual scripts (smoke_model, precompute_demos)
 tests/
   contract.py    assert_matches_schema(): validates payloads against openapi.yaml
 ```
