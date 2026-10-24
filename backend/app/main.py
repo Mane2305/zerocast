@@ -6,14 +6,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 
 from app import __version__
-from app.api import datasets, model
+from app.api import datasets, jobs, model
 from app.config import Settings, get_settings
 from app.db import init_db, make_engine
 from app.engine import YugEngine
 from app.engine.yug_engine import load_pipeline
 from app.errors import install_error_handlers
+from app.jobs import InProcessJobRunner
 from app.repository import Repository
 from app.schemas import Health
+from app.services.forecast import make_forecast_handler
 from app.storage import make_storage
 
 
@@ -25,6 +27,14 @@ def build_engine(settings: Settings) -> YugEngine | None:
         num_samples=settings.num_samples,
         model_name=settings.model_id,
         revision=settings.model_revision,
+    )
+
+
+def build_job_runner(app: FastAPI) -> InProcessJobRunner:
+    state = app.state
+    return InProcessJobRunner(
+        state.repository,
+        {"forecast": make_forecast_handler(state.repository, state.storage, lambda: state.engine)},
     )
 
 
@@ -40,7 +50,9 @@ def create_app(settings: Settings | None = None, engine: YugEngine | None = None
         app.state.storage = make_storage(settings)
         # The model loads on the engine's worker thread; the API is up meanwhile.
         app.state.engine = engine if engine is not None else build_engine(settings)
+        app.state.jobs = build_job_runner(app)
         yield
+        app.state.jobs.shutdown()
         if app.state.engine is not None and engine is None:
             app.state.engine.shutdown()
         db_engine.dispose()
@@ -49,6 +61,7 @@ def create_app(settings: Settings | None = None, engine: YugEngine | None = None
     install_error_handlers(app)
     app.include_router(datasets.router)
     app.include_router(model.router)
+    app.include_router(jobs.router)
 
     @app.get("/health", response_model=Health, response_model_exclude_none=True)
     def health(request: Request) -> Health:

@@ -323,3 +323,30 @@ def run_health_check(raw: pd.DataFrame) -> HealthResult:
             "end": format_date(frame["date"].max()),
         },
     )
+
+
+def future_dates(last: pd.Timestamp, frequency: str, horizon: int) -> pd.DatetimeIndex:
+    """The ``horizon`` grid dates after ``last``, on the same grid the health check used."""
+    if frequency in _FIXED_STEPS:
+        step = _FIXED_STEPS[frequency]
+        return pd.DatetimeIndex([last + step * k for k in range(1, horizon + 1)])
+    if frequency in _MONTH_STEPS:
+        months = _MONTH_STEPS[frequency]
+        if last.is_month_end:
+            return pd.date_range(last, periods=horizon + 1, freq=f"{months}ME")[1:]
+        return pd.DatetimeIndex(
+            [last + pd.DateOffset(months=months * k) for k in range(1, horizon + 1)]
+        )
+    raise ValueError(f"cannot extend dates at frequency {frequency!r}")
+
+
+def one_cycle_earlier(dates: pd.DatetimeIndex, frequency: str) -> pd.DatetimeIndex | None:
+    """Same dates one year earlier. Daily/hourly/weekly use 52 weeks so weekdays line up."""
+    if frequency in _FIXED_STEPS:
+        return dates - pd.Timedelta(weeks=52)
+    if frequency in _MONTH_STEPS:
+        shifted = dates - pd.DateOffset(years=1)
+        if dates.is_month_end.all():
+            shifted = shifted + pd.offsets.MonthEnd(0)
+        return pd.DatetimeIndex(shifted)
+    return None

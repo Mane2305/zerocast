@@ -110,6 +110,16 @@ class Repository:
             session.flush()
             return _to_record(row, JobRecord)
 
+    def fail_unfinished_jobs(self, error: dict[str, Any]) -> int:
+        """Mark queued/running jobs as failed (they cannot survive a restart in Phase 1)."""
+        with self._sessions.begin() as session:
+            rows = session.scalars(
+                select(JobRow).where(JobRow.status.in_(("queued", "running")))
+            ).all()
+            for row in rows:
+                row.status, row.error, row.finished_at = "failed", error, utcnow()
+            return len(rows)
+
     # Annotations
     def upsert_annotation(self, record: AnnotationRecord) -> AnnotationRecord:
         """Add an annotation, replacing any existing one for the same series and date."""

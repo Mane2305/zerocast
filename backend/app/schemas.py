@@ -2,7 +2,7 @@
 
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 Frequency = Literal["hourly", "daily", "weekly", "monthly", "quarterly", "yearly", "unknown"]
 CheckId = Literal[
@@ -97,3 +97,33 @@ class SeriesHistory(BaseModel):
     dates: list[str]
     target: list[float | None]
     factors: dict[str, list[float | None]] | None = None
+
+
+JobType = Literal["forecast", "review", "factors"]
+JobStatus = Literal["queued", "running", "succeeded", "failed"]
+
+
+class ForecastRequest(BaseModel):
+    dataset_id: str
+    series_ids: list[str] = Field(min_length=1, max_length=100)
+    horizon: int = Field(ge=1, le=256)
+    seed: int = 0
+
+
+class JobRef(BaseModel):
+    job_id: str
+    job_type: JobType
+    status: JobStatus
+
+
+class Job(BaseModel):
+    job_id: str
+    job_type: JobType
+    status: JobStatus
+    progress: float = Field(ge=0, le=100)
+    message: str | None = None
+    created_at: str | None = None
+    finished_at: str | None = None
+    error: Error | None = None
+    # Shape depends on job_type; built by the job handlers and checked by contract tests.
+    result: dict[str, Any] | None = None

@@ -79,6 +79,40 @@ curl http://localhost:8000/datasets/<dataset_id>/series/<series_id>
 - Dates in responses are ISO 8601 without a timezone (`2024-01-01T00:00:00`), because business
   dates have none. Adding `Z` would shift days for users west of UTC.
 
+## Jobs and forecasts (B4)
+
+```bash
+curl -X POST http://localhost:8000/jobs/forecast -H "Content-Type: application/json" \
+  -d '{"dataset_id": "<id>", "series_ids": ["A", "B"], "horizon": 28}'
+curl http://localhost:8000/jobs/<job_id>     # poll until status is succeeded or failed
+```
+
+- `app/jobs.py`: the `JobRunner` interface (`submit`, `status`) and `InProcessJobRunner`.
+  Jobs run one at a time on a background thread, and their state is stored in the DB. On
+  startup, jobs left `queued`/`running` by a previous process are marked `failed`
+  (`interrupted`).
+- A well-formed request always gets 202. Problems found while running are reported on the job
+  (`status: failed`, `error.code`): `not_found`, `series_not_found`, `series_excluded`,
+  `model_disabled`, `model_failed`, `internal_error`. A malformed body (e.g. horizon > 256)
+  gets 422.
+- The forecast reads the cleaned history (missing dates are NaN, masked by Yug) and returns
+  quantiles, `total_distribution` (percentiles 0..100 of the horizon total from sample paths),
+  `step_exceedance_grid` (per-step percentiles 1..99), `last_year` and `risk`. Numbers are
+  rounded to 6 significant digits.
+- `last_year` is the actual value one cycle earlier: 52 weeks for hourly/daily/weekly (keeps
+  weekdays aligned), 12 months for monthly/quarterly/yearly. It is `null` when none of those
+  dates exist in the history.
+- Risk thresholds (`app/services/insights.py`), all product choices to confirm:
+  - `uncertainty_score` is the mean of (P90 − P10)/|P50| over the horizon; steps with P50 = 0
+    are skipped.
+  - Labels: `predictable` below 0.3 (about ±15%), `volatile` from 0.6 (about ±30%),
+    `moderate` in between.
+  - `risk_direction` is `upside`/`downside` when one side of the band is on average 1.5× wider
+    than the other.
+  - `trust_horizon` is the number of leading steps whose relative width stays ≤ 0.5 (about ±25%).
+- Note for consumers: Yug draws one random number per 64-step block, so within a block the
+  sample paths move together. Totals still come from paths (`total_distribution`), as required.
+
 ## Configuration
 
 All settings come from environment variables (or a git-ignored `backend/.env` file).
@@ -109,8 +143,9 @@ app/
   storage.py     Storage interface (put/get) + LocalStorage
   schemas.py     Pydantic response models mirroring the contract
   engine/        YugEngine, path summaries, tiny test model: the only package importing yug
-  api/           routers (datasets, model)
-  services/      pure logic: health check, dataset ingestion
+  api/           routers (datasets, model, jobs)
+  jobs.py        JobRunner interface + in-process runner
+  services/      health check, dataset ingestion, insights, forecast job
 scripts/         manual scripts (smoke_model)
 tests/
   contract.py    assert_matches_schema(): validates payloads against openapi.yaml
@@ -121,3 +156,6 @@ tests/
 - Tables are created with `create_all` at startup. There are no migrations yet, so if the
   schema changes during Phase 1, delete `storage/zerocast.db`.
 - `/model/info` returns 503 while the model is loading. The contract only lists 200 for it.
+- A forecast job for 100 series × 256 steps returns about 20 MB of JSON, mostly the step
+  exceedance grid. That's fine locally; revisit before Phase 2.
+- Job state lives in the DB, but the queue is in memory: a restart fails pending jobs.
