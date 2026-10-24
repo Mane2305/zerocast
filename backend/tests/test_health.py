@@ -26,3 +26,10 @@ def test_contract_check_rejects_unknown_fields():
         assert "extra" in str(exc)
     else:
         raise AssertionError("unknown field was accepted")
+
+
+def test_cors_allows_the_frontend_dev_server(client):
+    response = client.get("/health", headers={"Origin": "http://localhost:3000"})
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    other = client.get("/health", headers={"Origin": "http://evil.example"})
+    assert "access-control-allow-origin" not in other.headers

@@ -228,6 +228,7 @@ Relative paths are resolved from the directory you start the server in (normally
 | `ZC_LOAD_MODEL` | `true` | `false` starts the API without the model (forecast endpoints return 503) |
 | `ZC_MODEL_ID` | `birlaailabs/yug` | Hugging Face repo id, or a local folder with `config.json` + `model.safetensors` |
 | `ZC_MODEL_REVISION` | — | Optional Hugging Face revision (commit/tag) for the weights |
+| `ZC_CORS_ORIGINS` | `["http://localhost:3000","http://127.0.0.1:3000"]` | JSON list of browser origins allowed to call the API |
 
 `storage/` is git-ignored. Never commit it.
 

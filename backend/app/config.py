@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     load_model: bool = True
     model_id: str = "birlaailabs/yug"
     model_revision: str | None = None
+    # Browser origins allowed to call the API (the Next.js dev server by default).
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 
 @lru_cache

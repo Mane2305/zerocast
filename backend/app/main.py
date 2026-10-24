@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
 from app.api import datasets, jobs, model
@@ -69,6 +70,12 @@ def create_app(settings: Settings | None = None, engine: YugEngine | None = None
 
     app = FastAPI(title="ZeroCast API", version=__version__, lifespan=lifespan)
     install_error_handlers(app)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(datasets.router)
     app.include_router(model.router)
     app.include_router(jobs.router)
