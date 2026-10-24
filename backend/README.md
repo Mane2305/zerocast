@@ -113,6 +113,12 @@ curl http://localhost:8000/jobs/<job_id>     # poll until status is succeeded or
 - Note for consumers: Yug draws one random number per 64-step block, so within a block the
   sample paths move together. Totals still come from paths (`total_distribution`), as required.
 
+## Demo data (B5)
+
+`make demo-data` builds the demo datasets into `data/processed/` from raw files in `data/raw/`.
+See `data/scripts/README.md` for sources, download steps and licence notes. `make lint`
+also covers `data/scripts/`.
+
 ## Configuration
 
 All settings come from environment variables (or a git-ignored `backend/.env` file).
