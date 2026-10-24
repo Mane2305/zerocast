@@ -113,6 +113,40 @@ curl http://localhost:8000/jobs/<job_id>     # poll until status is succeeded or
 - Note for consumers: Yug draws one random number per 64-step block, so within a block the
   sample paths move together. Totals still come from paths (`total_distribution`), as required.
 
+## Year in review and annotations (B7)
+
+```bash
+curl -X POST http://localhost:8000/jobs/review -H "Content-Type: application/json" \
+  -d '{"dataset_id": "<id>", "series_ids": ["A"]}'
+curl -X POST http://localhost:8000/datasets/<id>/annotations -H "Content-Type: application/json" \
+  -d '{"series_id": "A", "date": "2024-08-24", "text": "Wholesale order"}'
+curl http://localhost:8000/datasets/<id>/annotations
+```
+
+- Replay (`app/services/review.py`): the last `lookback_periods` are split into blocks of
+  `step`. Each block is forecast from data strictly before it (no leakage) and compared with
+  the actuals. Origins with fewer than 30 observed points of context are skipped, and at most
+  120 origins are used.
+- Defaults by frequency (lookback / step): hourly 672 / 24, daily 364 / 7, weekly 52 / 1,
+  monthly 12 / 1, quarterly 4 / 1, yearly 3 / 1.
+- Ranking (product choices):
+  - Candidates are band breaches (outside P10–P90). For hourly/daily/weekly data, periods
+    containing a holiday also count, so a festival that came in as expected is reported with
+    `recurring_as_expected: true`. Monthly and longer periods almost always contain some
+    holiday, so there only breaches are listed (still tagged with their holidays).
+  - `positive_surprises` are periods with actual > P50 and `misses` those with actual < P50,
+    each ranked by |deviation_pct| and capped at `top_n` (default 5).
+- Holidays come from the `holidays` package for the dataset's `holiday_country`; an unknown
+  country just gives no tags.
+- `expected_total` is the sum of the **mean** of the sample paths over the replayed periods
+  (means add up; quantiles don't). `actual_total` sums the actuals; periods with a blank
+  actual are left out of both. `band_coverage` is the share of periods inside P10–P90 (~0.8
+  expected).
+- Annotations: `POST` adds or replaces the note for (series, date). Dates are normalised to
+  `YYYY-MM-DDT00:00:00`, so they match the review's dates. An unknown series gives 422, an
+  unknown dataset 404.
+- `precompute_demos` now also writes `review.json` (ReviewResult) per demo.
+
 ## Demo data (B5)
 
 `make demo-data` builds the demo datasets into `data/processed/` from raw files in `data/raw/`.
@@ -172,7 +206,7 @@ app/
   engine/        YugEngine, path summaries, tiny test model: the only package importing yug
   api/           routers (datasets, model, jobs)
   jobs.py        JobRunner interface + in-process runner
-  services/      health check, dataset ingestion, insights, forecast job
+  services/      health check, dataset ingestion, insights, forecast + review jobs
 scripts/         manual scripts (smoke_model, precompute_demos)
 tests/
   contract.py    assert_matches_schema(): validates payloads against openapi.yaml

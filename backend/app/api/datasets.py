@@ -2,15 +2,16 @@ import re
 from pathlib import PurePath
 from typing import Annotated
 
+import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
 from app.api.deps import get_repository, get_storage
 from app.errors import ApiError, not_found
-from app.repository import DatasetRecord, Repository
-from app.schemas import Dataset, Error, SeriesHistory
+from app.repository import AnnotationRecord, DatasetRecord, Repository
+from app.schemas import Annotation, AnnotationInput, Dataset, Error, SeriesHistory
 from app.services import datasets
-from app.services.health_check import DatasetError
+from app.services.health_check import DatasetError, format_date
 from app.storage import Storage
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
@@ -100,3 +101,54 @@ def get_series(
     if history is None:
         raise not_found("Series", series_id)
     return history
+
+
+def _annotation(record: AnnotationRecord) -> dict:
+    return {
+        "annotation_id": record.annotation_id,
+        "series_id": record.series_id,
+        "date": record.date,
+        "text": record.text,
+        "created_at": record.created_at.isoformat(),
+    }
+
+
+@router.get(
+    "/{dataset_id}/annotations",
+    response_model=list[Annotation],
+    responses={404: {"model": Error}},
+)
+def list_annotations(
+    dataset_id: str, repository: Annotated[Repository, Depends(get_repository)]
+) -> list[dict]:
+    _get_record(repository, dataset_id)
+    return [_annotation(a) for a in repository.list_annotations(dataset_id)]
+
+
+@router.post(
+    "/{dataset_id}/annotations",
+    status_code=201,
+    response_model=Annotation,
+    responses={404: {"model": Error}, 422: {"model": Error}},
+)
+def add_annotation(
+    dataset_id: str,
+    body: AnnotationInput,
+    repository: Annotated[Repository, Depends(get_repository)],
+) -> dict:
+    record = _get_record(repository, dataset_id)
+    if body.series_id not in {s["series_id"] for s in record.meta["series"]}:
+        raise ApiError(422, "series_not_found", f"Series {body.series_id!r} not in this dataset")
+    # Same naive ISO format as the review's surprise dates, so they can be matched.
+    when = pd.Timestamp(body.date)
+    if when.tzinfo is not None:
+        when = when.tz_convert(None)
+    saved = repository.upsert_annotation(
+        AnnotationRecord(
+            dataset_id=dataset_id,
+            series_id=body.series_id,
+            date=format_date(when),
+            text=body.text.strip(),
+        )
+    )
+    return _annotation(saved)

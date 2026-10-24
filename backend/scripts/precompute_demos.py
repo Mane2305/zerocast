@@ -6,6 +6,7 @@ data/scripts (B5), and writes, matching frontend/src/lib/load-demo.ts:
     <out>/<demo_id>/dataset.json    Dataset
     <out>/<demo_id>/history.json    SeriesHistory of the demo's primary series
     <out>/<demo_id>/forecast.json   ForecastResult for the primary series
+    <out>/<demo_id>/review.json     ReviewResult (year in review) for the primary series
 
     cd backend
     uv run python -m scripts.precompute_demos --out ../frontend/public/demo   # needs real weights
@@ -25,6 +26,7 @@ from app.config import get_settings
 from app.engine import YugEngine
 from app.main import build_engine
 from app.repository import DatasetRecord
+from app.services import review
 from app.services.datasets import dataset_response, history_from_frame
 from app.services.forecast import forecast_series, series_values
 from app.services.health_check import run_health_check
@@ -91,12 +93,25 @@ def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[s
     forecast = forecast_series(engine, values, health.frequency, spec.horizon, SEED)
     return {
         "dataset": dataset_response(record),
+        "review": review_demo(spec, values, health.frequency, engine),
         "history": history,
         "forecast": {
             "quantile_levels": engine.info()["quantile_levels"],
             "series": [{"series_id": spec.primary_series, **forecast}],
         },
     }
+
+
+def review_demo(spec: DemoSpec, values: pd.Series, frequency: str, engine: YugEngine) -> dict:
+    lookback, step = review.default_window(frequency)
+
+    def forecaster(context, horizon, seed):
+        out = engine.forecast(context, horizon, frequency, seed=seed)
+        return out.quantiles, out.paths
+
+    periods = review.replay(values, lookback, step, forecaster, seed=SEED)
+    events = review.calendar_events([p.date for p in periods], frequency, spec.holiday_country)
+    return {"series": [review.summarize(spec.primary_series, periods, events, {}, 5, frequency)]}
 
 
 def write_demo(out_dir: Path, demo_id: str, files: dict[str, Any]) -> list[Path]:

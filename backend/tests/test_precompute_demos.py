@@ -40,7 +40,12 @@ def test_writes_contract_shaped_files(tmp_path, spec, tiny_engine):
 
     written = precompute_demos.precompute([spec], tiny_engine, out)
 
-    assert sorted(p.name for p in written) == ["dataset.json", "forecast.json", "history.json"]
+    assert sorted(p.name for p in written) == [
+        "dataset.json",
+        "forecast.json",
+        "history.json",
+        "review.json",
+    ]
     dataset = json.loads((out / "manufacturing" / "dataset.json").read_text())
     history = json.loads((out / "manufacturing" / "history.json").read_text())
     forecast = json.loads((out / "manufacturing" / "forecast.json").read_text())
@@ -48,6 +53,8 @@ def test_writes_contract_shaped_files(tmp_path, spec, tiny_engine):
     assert_matches_schema("Dataset", dataset)
     assert_matches_schema("SeriesHistory", history)
     assert_matches_schema("ForecastResult", forecast)
+    review = json.loads((out / "manufacturing" / "review.json").read_text())
+    assert_matches_schema("ReviewResult", review)
     for series in forecast["series"]:
         assert_matches_schema("SeriesForecast", series)
 

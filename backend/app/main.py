@@ -16,6 +16,7 @@ from app.jobs import InProcessJobRunner
 from app.repository import Repository
 from app.schemas import Health
 from app.services.forecast import make_forecast_handler
+from app.services.review_job import make_review_handler
 from app.storage import make_storage
 
 
@@ -32,9 +33,16 @@ def build_engine(settings: Settings) -> YugEngine | None:
 
 def build_job_runner(app: FastAPI) -> InProcessJobRunner:
     state = app.state
+
+    def engine() -> YugEngine | None:
+        return state.engine
+
     return InProcessJobRunner(
         state.repository,
-        {"forecast": make_forecast_handler(state.repository, state.storage, lambda: state.engine)},
+        {
+            "forecast": make_forecast_handler(state.repository, state.storage, engine),
+            "review": make_review_handler(state.repository, state.storage, engine),
+        },
     )
 
 

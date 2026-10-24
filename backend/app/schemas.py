@@ -1,5 +1,6 @@
 """Pydantic response models mirroring contracts/openapi.yaml."""
 
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -127,3 +128,25 @@ class Job(BaseModel):
     error: Error | None = None
     # Shape depends on job_type; built by the job handlers and checked by contract tests.
     result: dict[str, Any] | None = None
+
+
+class ReviewRequest(BaseModel):
+    dataset_id: str
+    series_ids: list[str] = Field(min_length=1, max_length=20)
+    lookback_periods: int | None = Field(default=None, ge=1)
+    step: int | None = Field(default=None, ge=1)
+    top_n: int = Field(default=5, ge=1, le=50)
+
+
+class AnnotationInput(BaseModel):
+    series_id: str
+    date: datetime
+    text: str = Field(max_length=500)
+
+
+class Annotation(BaseModel):
+    annotation_id: str
+    series_id: str
+    date: str
+    text: str
+    created_at: str | None = None
