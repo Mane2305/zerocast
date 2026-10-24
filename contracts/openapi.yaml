@@ -1,0 +1,495 @@
+openapi: 3.1.0
+info:
+  title: ZeroCast API
+  version: 0.1.0
+  description: |
+    Contract between the ZeroCast frontend and backend. Only the architect (via the repo owner)
+    changes this file. Backend implements it exactly; frontend uses a mock server generated from it.
+    Conventions: JSON, snake_case, ISO-8601 dates, all numbers in the dataset's own units.
+servers:
+  - url: http://localhost:8000
+    description: Phase 1 local backend
+
+paths:
+  /health:
+    get:
+      summary: Liveness and model status
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+
+  /model/info:
+    get:
+      summary: Model card summary and live latency stats
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModelInfo" }
+
+  /datasets:
+    post:
+      summary: Upload a dataset in the universal long template (Parquet or CSV) and run the health check
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: "Parquet or CSV, max 50 MB" }
+                name: { type: string }
+                holiday_country: { type: string, description: "ISO country code for the holiday calendar, e.g. IN" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dataset" }
+        "422":
+          description: Validation error (wrong columns, too large, unreadable)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /datasets/{dataset_id}:
+    get:
+      summary: Dataset metadata, series list and health report
+      parameters:
+        - $ref: "#/components/parameters/DatasetId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dataset" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /datasets/{dataset_id}/series/{series_id}:
+    get:
+      summary: Full history of one series (target and factors) for charting
+      parameters:
+        - $ref: "#/components/parameters/DatasetId"
+        - name: series_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SeriesHistory" }
+
+  /datasets/{dataset_id}/annotations:
+    get:
+      summary: User annotations for review events
+      parameters:
+        - $ref: "#/components/parameters/DatasetId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Annotation" }
+    post:
+      summary: Add or replace an annotation for a series and date
+      parameters:
+        - $ref: "#/components/parameters/DatasetId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnotationInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Annotation" }
+
+  /jobs/forecast:
+    post:
+      summary: Forecast one or more series (univariate). Also computes portfolio risk metrics.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ForecastRequest" }
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+
+  /jobs/review:
+    post:
+      summary: Year in review — replay past origins and rank surprises
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewRequest" }
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+
+  /jobs/factors:
+    post:
+      summary: Factor check — two lenses per factor (statistics and Yug backtest)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FactorRequest" }
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+
+  /jobs/{job_id}:
+    get:
+      summary: Job status, progress and result. Result shape depends on job_type.
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+components:
+  parameters:
+    DatasetId:
+      name: dataset_id
+      in: path
+      required: true
+      schema: { type: string }
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, examples: ["invalid_columns"] }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+
+    Health:
+      type: object
+      required: [status, model_loaded]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        model_loaded: { type: boolean }
+        device: { type: string, examples: ["cpu"] }
+        version: { type: string }
+
+    ModelInfo:
+      type: object
+      required: [name, parameters, quantile_levels, max_context, block_size, license]
+      properties:
+        name: { type: string, examples: ["birlaailabs/yug"] }
+        revision: { type: string, description: "Pinned commit or release" }
+        parameters: { type: integer, examples: [271845260] }
+        quantile_levels: { type: array, items: { type: number } }
+        max_context: { type: integer, examples: [2048] }
+        block_size: { type: integer, examples: [64] }
+        license: { type: string, examples: ["CC-BY-NC-4.0 (weights)"] }
+        device: { type: string }
+        num_samples: { type: integer }
+        latency_ms:
+          type: object
+          description: Rolling stats over recent model calls
+          properties:
+            p50: { type: number }
+            p95: { type: number }
+            count: { type: integer }
+
+    Frequency:
+      type: string
+      enum: [hourly, daily, weekly, monthly, quarterly, yearly, unknown]
+
+    Dataset:
+      type: object
+      required: [dataset_id, name, frequency, series_count, factor_columns, health]
+      properties:
+        dataset_id: { type: string }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+        frequency: { $ref: "#/components/schemas/Frequency" }
+        holiday_country: { type: ["string", "null"] }
+        series_count: { type: integer }
+        factor_columns: { type: array, items: { type: string } }
+        date_range:
+          type: object
+          properties:
+            start: { type: string, format: date-time }
+            end: { type: string, format: date-time }
+        series:
+          type: array
+          items: { $ref: "#/components/schemas/SeriesSummary" }
+        health: { $ref: "#/components/schemas/HealthReport" }
+
+    SeriesSummary:
+      type: object
+      required: [series_id, length, status]
+      properties:
+        series_id: { type: string }
+        length: { type: integer }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        missing_count: { type: integer }
+        status: { type: string, enum: [ready, warning, excluded] }
+        issues: { type: array, items: { type: string } }
+
+    HealthReport:
+      type: object
+      required: [ready, checks]
+      properties:
+        ready: { type: boolean, description: "At least one series can be forecast" }
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/HealthCheck" }
+
+    HealthCheck:
+      type: object
+      required: [id, label, severity, count]
+      properties:
+        id:
+          type: string
+          enum: [missing_dates, duplicates, negative_values, non_finite, too_short, constant_series, irregular_spacing, too_many_factors]
+        label: { type: string, examples: ["Missing dates"] }
+        severity: { type: string, enum: [info, warning, error] }
+        count: { type: integer }
+        percent: { type: number }
+        action_taken: { type: string, examples: ["Filled as blanks"] }
+        affected_series: { type: array, items: { type: string } }
+
+    SeriesHistory:
+      type: object
+      required: [series_id, dates, target]
+      properties:
+        series_id: { type: string }
+        dates: { type: array, items: { type: string, format: date-time } }
+        target: { type: array, items: { type: ["number", "null"] } }
+        factors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: ["number", "null"] }
+
+    ForecastRequest:
+      type: object
+      required: [dataset_id, series_ids, horizon]
+      properties:
+        dataset_id: { type: string }
+        series_ids: { type: array, items: { type: string }, minItems: 1, maxItems: 100 }
+        horizon: { type: integer, minimum: 1, maximum: 256 }
+        seed: { type: integer, default: 0 }
+
+    ReviewRequest:
+      type: object
+      required: [dataset_id, series_ids]
+      properties:
+        dataset_id: { type: string }
+        series_ids: { type: array, items: { type: string }, minItems: 1, maxItems: 20 }
+        lookback_periods: { type: integer, description: "How many past periods to replay; default = ~12 months at the dataset frequency" }
+        step: { type: integer, description: "Origin spacing in periods; default 1 for weekly/monthly, 7 for daily" }
+        top_n: { type: integer, default: 5 }
+
+    FactorRequest:
+      type: object
+      required: [dataset_id, series_id, factors]
+      properties:
+        dataset_id: { type: string }
+        series_id: { type: string }
+        factors: { type: array, items: { type: string }, minItems: 1, maxItems: 10 }
+        horizon: { type: integer, minimum: 1, maximum: 64, default: 28 }
+        max_lag: { type: integer, default: 3 }
+
+    JobRef:
+      type: object
+      required: [job_id, job_type, status]
+      properties:
+        job_id: { type: string }
+        job_type: { type: string, enum: [forecast, review, factors] }
+        status: { $ref: "#/components/schemas/JobStatus" }
+
+    JobStatus:
+      type: string
+      enum: [queued, running, succeeded, failed]
+
+    Job:
+      type: object
+      required: [job_id, job_type, status, progress]
+      properties:
+        job_id: { type: string }
+        job_type: { type: string, enum: [forecast, review, factors] }
+        status: { $ref: "#/components/schemas/JobStatus" }
+        progress: { type: number, minimum: 0, maximum: 100 }
+        message: { type: string, examples: ["Forecasting series 3 of 10"] }
+        created_at: { type: string, format: date-time }
+        finished_at: { type: ["string", "null"], format: date-time }
+        error: { oneOf: [{ $ref: "#/components/schemas/Error" }, { type: "null" }] }
+        result:
+          description: Present when status = succeeded
+          oneOf:
+            - $ref: "#/components/schemas/ForecastResult"
+            - $ref: "#/components/schemas/ReviewResult"
+            - $ref: "#/components/schemas/FactorResult"
+            - type: "null"
+
+    ForecastResult:
+      type: object
+      required: [quantile_levels, series]
+      properties:
+        quantile_levels: { type: array, items: { type: number }, examples: [[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]] }
+        series:
+          type: array
+          items: { $ref: "#/components/schemas/SeriesForecast" }
+
+    SeriesForecast:
+      type: object
+      required: [series_id, dates, quantiles, total_distribution, risk, latency_ms]
+      properties:
+        series_id: { type: string }
+        dates: { type: array, items: { type: string, format: date-time }, description: "Future dates, length = horizon" }
+        quantiles:
+          type: array
+          description: "Shape [n_quantiles][horizon], aligned with quantile_levels"
+          items: { type: array, items: { type: number } }
+        last_year:
+          type: ["array", "null"]
+          description: "Actual values for the same dates one seasonal cycle earlier, if available"
+          items: { type: ["number", "null"] }
+        total_distribution:
+          type: object
+          description: "Distribution of the horizon TOTAL computed from sample paths. percentiles[i] is the (i)th percentile, i = 0..100."
+          required: [percentiles]
+          properties:
+            percentiles: { type: array, items: { type: number }, minItems: 101, maxItems: 101 }
+        step_exceedance_grid:
+          type: object
+          description: "Optional: per-step percentiles 1..99 from sample paths, for capacity-risk lookups. Shape [99][horizon]."
+          properties:
+            percentiles:
+              type: array
+              items: { type: array, items: { type: number } }
+        risk: { $ref: "#/components/schemas/RiskMetrics" }
+        latency_ms: { type: number }
+
+    RiskMetrics:
+      type: object
+      required: [uncertainty_score, risk_direction, trust_horizon]
+      properties:
+        uncertainty_score: { type: number, description: "mean over horizon of (P90-P10)/|P50|" }
+        uncertainty_label: { type: string, enum: [predictable, moderate, volatile] }
+        risk_direction: { type: string, enum: [upside, downside, balanced] }
+        trust_horizon: { type: integer, description: "Last step before relative band width exceeds the threshold" }
+
+    ReviewResult:
+      type: object
+      required: [series]
+      properties:
+        series:
+          type: array
+          items:
+            type: object
+            required: [series_id, positive_surprises, misses]
+            properties:
+              series_id: { type: string }
+              positive_surprises: { type: array, items: { $ref: "#/components/schemas/SurpriseEvent" } }
+              misses: { type: array, items: { $ref: "#/components/schemas/SurpriseEvent" } }
+              expected_total: { type: number }
+              actual_total: { type: number }
+              band_coverage: { type: number, description: "Share of replayed periods inside P10-P90 (expected ~0.8)" }
+
+    SurpriseEvent:
+      type: object
+      required: [date, actual, expected_p50, deviation_pct]
+      properties:
+        date: { type: string, format: date-time }
+        actual: { type: number }
+        expected_p50: { type: number }
+        expected_p10: { type: number }
+        expected_p90: { type: number }
+        deviation_pct: { type: number, description: "(actual - p50) / |p50| * 100" }
+        calendar_events: { type: array, items: { type: string }, examples: [["Diwali"]] }
+        recurring_as_expected: { type: boolean, description: "True if a calendar event occurred but the value was inside the band" }
+        annotation: { type: ["string", "null"] }
+
+    FactorResult:
+      type: object
+      required: [series_id, factors]
+      properties:
+        series_id: { type: string }
+        baseline_wql: { type: number }
+        factors:
+          type: array
+          items:
+            type: object
+            required: [factor, related, helps_yug, verdict]
+            properties:
+              factor: { type: string }
+              related:
+                type: object
+                properties:
+                  is_related: { type: boolean }
+                  best_lag: { type: integer }
+                  effect: { type: number, description: "Standardised coefficient on de-trended, de-seasonalised data" }
+                  p_value: { type: number }
+              helps_yug:
+                type: object
+                properties:
+                  helps: { type: boolean }
+                  wql_with_factor: { type: number }
+                  change_pct: { type: number, description: "Negative = better than sales-only" }
+                  ci_low: { type: number }
+                  ci_high: { type: number }
+              verdict:
+                type: string
+                enum: [use_it, real_driver_yug_cannot_use, helps_yug_unclear_link, probably_drop]
+              explanation: { type: string }
+
+    AnnotationInput:
+      type: object
+      required: [series_id, date, text]
+      properties:
+        series_id: { type: string }
+        date: { type: string, format: date-time }
+        text: { type: string, maxLength: 500 }
+
+    Annotation:
+      allOf:
+        - $ref: "#/components/schemas/AnnotationInput"
+        - type: object
+          required: [annotation_id]
+          properties:
+            annotation_id: { type: string }
+            created_at: { type: string, format: date-time }
