@@ -15,6 +15,7 @@ from app.errors import install_error_handlers
 from app.jobs import InProcessJobRunner
 from app.repository import Repository
 from app.schemas import Health
+from app.services.factor_job import make_factor_handler
 from app.services.forecast import make_forecast_handler
 from app.services.review_job import make_review_handler
 from app.storage import make_storage
@@ -42,6 +43,7 @@ def build_job_runner(app: FastAPI) -> InProcessJobRunner:
         {
             "forecast": make_forecast_handler(state.repository, state.storage, engine),
             "review": make_review_handler(state.repository, state.storage, engine),
+            "factors": make_factor_handler(state.repository, state.storage, engine),
         },
     )
 

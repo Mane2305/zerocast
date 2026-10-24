@@ -147,6 +147,36 @@ curl http://localhost:8000/datasets/<id>/annotations
   unknown dataset 404.
 - `precompute_demos` now also writes `review.json` (ReviewResult) per demo.
 
+## Factor check (B8)
+
+```bash
+curl -X POST http://localhost:8000/jobs/factors -H "Content-Type: application/json"   -d '{"dataset_id": "<id>", "series_id": "A", "factors": ["promo"], "horizon": 28}'
+```
+
+Two separate lenses per factor (`app/services/factors.py`):
+
+- **Lens 1, related to your sales?**
+  - Target and factor are each de-trended and de-seasonalised: OLS residuals on a linear trend
+    plus seasonal dummies (period 24/7/52/12/4 for hourly/daily/weekly/monthly/quarterly).
+  - Then an OLS of target on factor at lags 0..`max_lag`, with HAC (Newey-West) standard
+    errors, because the residuals are autocorrelated.
+  - The best lag's p-value is Bonferroni-adjusted for the number of lags tried.
+    `is_related` means p < 0.05.
+  - `effect` is the standardised coefficient. The wording is "related to", never "causes".
+- **Lens 2, helps Yug forecast?**
+  - Up to 8 non-overlapping backtest origins at the end of the series. Each origin is forecast
+    sales-only and sales + factor with the same seed, so the comparison is paired.
+  - Scored by weighted quantile loss (WQL).
+  - A paired bootstrap over origins (1000 resamples) gives a 95% CI for `change_pct`.
+    `helps` means the whole CI is below 0.
+  - With fewer than 3 origins, `helps` is always false and there's no CI.
+- **Verdict:** related & helps → `use_it`; related only → `real_driver_yug_cannot_use`;
+  helps only → `helps_yug_unclear_link`; neither → `probably_drop`.
+- **Covariate path:** `YugEngine.forecast_with_covariates` is used only here, and only for
+  horizon ≤ 64. Pass the stack as a list, `[stack]`: a bare `(channels, time)` array is read by
+  `predict` as separate univariate series (tested).
+- `precompute_demos` also writes `factors.json` for demos that have factor columns.
+
 ## Demo data (B5)
 
 `make demo-data` builds the demo datasets into `data/processed/` from raw files in `data/raw/`.
@@ -206,7 +236,7 @@ app/
   engine/        YugEngine, path summaries, tiny test model: the only package importing yug
   api/           routers (datasets, model, jobs)
   jobs.py        JobRunner interface + in-process runner
-  services/      health check, dataset ingestion, insights, forecast + review jobs
+  services/      health check, dataset ingestion, insights, forecast/review/factor jobs
 scripts/         manual scripts (smoke_model, precompute_demos)
 tests/
   contract.py    assert_matches_schema(): validates payloads against openapi.yaml

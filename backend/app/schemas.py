@@ -150,3 +150,11 @@ class Annotation(BaseModel):
     date: str
     text: str
     created_at: str | None = None
+
+
+class FactorRequest(BaseModel):
+    dataset_id: str
+    series_id: str
+    factors: list[str] = Field(min_length=1, max_length=10)
+    horizon: int = Field(default=28, ge=1, le=64)
+    max_lag: int = Field(default=3, ge=0, le=24)

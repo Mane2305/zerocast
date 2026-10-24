@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Request
 from app.errors import not_found
 from app.jobs import JobRunner
 from app.repository import JobRecord
-from app.schemas import Error, ForecastRequest, Job, JobRef, ReviewRequest
+from app.schemas import Error, FactorRequest, ForecastRequest, Job, JobRef, ReviewRequest
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -55,6 +55,15 @@ def create_review_job(
     params = request.model_dump()
     params["series_ids"] = unique(params["series_ids"])
     return job_ref(runner, runner.submit("review", params))
+
+
+@router.post("/factors", status_code=202, response_model=JobRef)
+def create_factor_job(
+    request: FactorRequest, runner: Annotated[JobRunner, Depends(get_runner)]
+) -> dict:
+    params = request.model_dump()
+    params["factors"] = unique(params["factors"])
+    return job_ref(runner, runner.submit("factors", params))
 
 
 @router.get(

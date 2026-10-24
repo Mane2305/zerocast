@@ -7,6 +7,7 @@ data/scripts (B5), and writes, matching frontend/src/lib/load-demo.ts:
     <out>/<demo_id>/history.json    SeriesHistory of the demo's primary series
     <out>/<demo_id>/forecast.json   ForecastResult for the primary series
     <out>/<demo_id>/review.json     ReviewResult (year in review) for the primary series
+    <out>/<demo_id>/factors.json    FactorResult for the primary series (if it has factors)
 
     cd backend
     uv run python -m scripts.precompute_demos --out ../frontend/public/demo   # needs real weights
@@ -26,7 +27,7 @@ from app.config import get_settings
 from app.engine import YugEngine
 from app.main import build_engine
 from app.repository import DatasetRecord
-from app.services import review
+from app.services import factors, review
 from app.services.datasets import dataset_response, history_from_frame
 from app.services.forecast import forecast_series, series_values
 from app.services.health_check import run_health_check
@@ -45,6 +46,7 @@ class DemoSpec:
     holiday_country: str
     primary_series: str
     horizon: int
+    factor_horizon: int = 28
 
 
 DEMOS = (
@@ -63,12 +65,13 @@ DEMOS = (
         holiday_country="IN",
         primary_series="cement",
         horizon=12,
+        factor_horizon=6,
     ),
 )
 
 
 def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[str, Any]:
-    """Return {"dataset": ..., "history": ..., "forecast": ...} for one demo."""
+    """Return {file name: payload} for one demo."""
     health = run_health_check(frame)
     statuses = {s["series_id"]: s["status"] for s in health.series}
     if statuses.get(spec.primary_series, "excluded") == "excluded":
@@ -91,7 +94,7 @@ def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[s
     history = history_from_frame(health.frame, spec.primary_series, health.factor_columns)
     values = series_values(health.frame, spec.primary_series)
     forecast = forecast_series(engine, values, health.frequency, spec.horizon, SEED)
-    return {
+    files = {
         "dataset": dataset_response(record),
         "review": review_demo(spec, values, health.frequency, engine),
         "history": history,
@@ -100,6 +103,11 @@ def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[s
             "series": [{"series_id": spec.primary_series, **forecast}],
         },
     }
+    if health.factor_columns:
+        files["factors"] = factor_demo(
+            spec, health.frame, health.factor_columns, health.frequency, engine
+        )
+    return files
 
 
 def review_demo(spec: DemoSpec, values: pd.Series, frequency: str, engine: YugEngine) -> dict:
@@ -112,6 +120,24 @@ def review_demo(spec: DemoSpec, values: pd.Series, frequency: str, engine: YugEn
     periods = review.replay(values, lookback, step, forecaster, seed=SEED)
     events = review.calendar_events([p.date for p in periods], frequency, spec.holiday_country)
     return {"series": [review.summarize(spec.primary_series, periods, events, {}, 5, frequency)]}
+
+
+def factor_demo(
+    spec: DemoSpec, frame: pd.DataFrame, columns: list[str], frequency: str, engine: YugEngine
+) -> dict:
+    target = series_values(frame, spec.primary_series).to_numpy()
+    values = {c: series_values(frame, spec.primary_series, column=c).to_numpy() for c in columns}
+
+    def univariate(ctx, h, seed):
+        return engine.forecast(ctx, h, frequency, seed=seed).quantiles
+
+    def with_factor(ctx, fac, h, seed):
+        return engine.forecast_with_covariates(ctx, fac, h, frequency, seed=seed)
+
+    result = factors.factor_check(
+        target, values, frequency, spec.factor_horizon, 3, univariate, with_factor
+    )
+    return {"series_id": spec.primary_series, **result}
 
 
 def write_demo(out_dir: Path, demo_id: str, files: dict[str, Any]) -> list[Path]:

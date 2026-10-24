@@ -42,6 +42,7 @@ def test_writes_contract_shaped_files(tmp_path, spec, tiny_engine):
 
     assert sorted(p.name for p in written) == [
         "dataset.json",
+        "factors.json",
         "forecast.json",
         "history.json",
         "review.json",
@@ -55,6 +56,9 @@ def test_writes_contract_shaped_files(tmp_path, spec, tiny_engine):
     assert_matches_schema("ForecastResult", forecast)
     review = json.loads((out / "manufacturing" / "review.json").read_text())
     assert_matches_schema("ReviewResult", review)
+    factor_result = json.loads((out / "manufacturing" / "factors.json").read_text())
+    assert_matches_schema("FactorResult", factor_result)
+    assert [f["factor"] for f in factor_result["factors"]] == ["steel"]
     for series in forecast["series"]:
         assert_matches_schema("SeriesForecast", series)
 

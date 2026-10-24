@@ -45,6 +45,9 @@ YUG_FREQ = {
 }
 
 
+COVARIATE_MAX_HORIZON = 64
+
+
 class EngineNotReady(RuntimeError):
     """The model is still loading, failed to load, or loading is disabled."""
 
@@ -70,6 +73,21 @@ def sanitize_context(context: Any) -> np.ndarray:
     array = array.copy()
     array[np.isinf(array)] = np.nan  # inf would be read as an observed 0 (issue #7)
     return array
+
+
+def sanitize_covariate_stack(target: Any, covariates: Any) -> np.ndarray:
+    """``(1 + n_covariates, T)`` float32 stack, target in row 0, ±inf → NaN."""
+    row0 = sanitize_context(target)
+    cov = np.asarray(getattr(covariates, "to_numpy", lambda: covariates)(), dtype=np.float32)
+    if cov.ndim == 1:
+        cov = cov[None, :]
+    if cov.ndim != 2 or cov.shape[1] != row0.shape[0] or cov.shape[0] < 1:
+        raise ValueError(
+            f"covariates must be (n, {row0.shape[0]}) aligned with the target, got {cov.shape}"
+        )
+    stack = np.vstack([row0[None, :], cov]).astype(np.float32)
+    stack[np.isinf(stack)] = np.nan
+    return stack
 
 
 class YugEngine:
@@ -157,6 +175,33 @@ class YugEngine:
         with self._stats_lock:
             self._latencies.append(latency_ms)
         return ForecastOutput(quantiles=quantiles, paths=paths, latency_ms=latency_ms)
+
+    def forecast_with_covariates(
+        self, target: Any, covariates: Any, horizon: int, frequency: str, *, seed: int = 0
+    ) -> np.ndarray:
+        """Quantiles ``(n_quantiles, horizon)`` from Yug's covariate path. Factor check only.
+
+        Restricted to horizon <= one block (64): beyond it Yug tiles the sampled target into
+        the covariate rows, which our research found hurts accuracy (YUG_NOTES).
+        """
+        if frequency not in YUG_FREQ:
+            raise ValueError(f"unknown frequency {frequency!r}")
+        stack = sanitize_covariate_stack(target, covariates)
+        if not 1 <= horizon <= COVARIATE_MAX_HORIZON:
+            raise ValueError(f"covariate horizon must be 1..{COVARIATE_MAX_HORIZON}, got {horizon}")
+
+        def run(pipeline: YugPipeline) -> np.ndarray:
+            started = time.perf_counter()
+            # A bare 2-D array would be read as several univariate series; a list holding the
+            # (channels, time) stack is what selects the covariate path.
+            values = pipeline.predict(
+                [stack], horizon, freq=YUG_FREQ[frequency], num_samples=self.num_samples, seed=seed
+            ).values[0]
+            with self._stats_lock:
+                self._latencies.append((time.perf_counter() - started) * 1000.0)
+            return values
+
+        return self.submit(run).result()
 
     # ----------------------------------------------------------------- info
     def latency_stats(self) -> dict[str, float | int]:
