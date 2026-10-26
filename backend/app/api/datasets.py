@@ -3,7 +3,7 @@ from pathlib import PurePath
 from typing import Annotated, Literal
 
 import pandas as pd
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
 from app.api.deps import get_repository, get_storage
@@ -50,6 +50,7 @@ def _get_record(repository: Repository, dataset_id: str) -> DatasetRecord:
     responses={422: {"model": Error}},
 )
 async def create_dataset(
+    request: Request,
     file: Annotated[UploadFile, File()],
     repository: Annotated[Repository, Depends(get_repository)],
     storage: Annotated[Storage, Depends(get_storage)],
@@ -90,7 +91,28 @@ async def create_dataset(
         )
     except DatasetError as exc:
         raise ApiError(422, exc.code, exc.message, exc.details) from exc
+    prewarm_forecast(request, record)
     return datasets.dataset_response(record)
+
+
+def prewarm_forecast(request: Request, record: DatasetRecord) -> None:
+    """Start forecasting the first usable items at the default horizon right away, so the
+    Forecast page finds them ready (served from the job/item cache when it asks)."""
+    state = request.app.state
+    settings = state.settings
+    if not settings.prewarm or state.engine is None:
+        return
+    ready = [s["series_id"] for s in record.meta["series"] if s["status"] != "excluded"]
+    if not ready:
+        return
+    params = {
+        "dataset_id": record.dataset_id,
+        "series_ids": ready[: settings.prewarm_max_items],
+        "horizon": settings.prewarm_horizon,
+        "seed": 0,
+        "return_paths": 0,
+    }
+    state.jobs.submit("forecast", params)
 
 
 @router.get(

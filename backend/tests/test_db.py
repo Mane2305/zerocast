@@ -1,10 +1,20 @@
+from alembic import command
 from alembic.autogenerate import compare_metadata
+from alembic.config import Config
 from alembic.migration import MigrationContext
-from sqlalchemy import inspect
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import inspect, text
 
-from app.db import Base, init_db, make_engine, normalize_url
-from app.repository import DatasetRecord, Repository
+from app.db import MIGRATIONS, Base, init_db, make_engine, normalize_url
+from app.repository import Repository
+
+
+def old_database(engine) -> None:
+    config = Config()
+    config.set_main_option("script_location", MIGRATIONS.as_posix())
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.upgrade(config, "0001")
+        connection.execute(text("DROP TABLE alembic_version"))
 
 
 def test_migrations_match_the_models(tmp_path):
@@ -28,14 +38,20 @@ def test_migrating_twice_is_a_no_op(tmp_path):
 
 def test_database_created_before_migrations_is_stamped_and_kept(tmp_path):
     engine = make_engine(f"sqlite:///{(tmp_path / 'old.db').as_posix()}")
-    Base.metadata.create_all(engine)  # how B1-B13 created tables
-    sessions = sessionmaker(bind=engine, expire_on_commit=False)
-    old = Repository(sessions).add_dataset(DatasetRecord(name="old", storage_key="k"))
+    old_database(engine)  # tables as B1-B13 created them, no alembic_version
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO datasets (dataset_id, name, created_at, storage_key, meta) "
+                "VALUES ('old1', 'old', '2026-10-01 00:00:00', 'k', '{}')"
+            )
+        )
 
     repository = Repository(init_db(engine))
 
     assert "alembic_version" in inspect(engine).get_table_names()
-    assert repository.get_dataset(old.dataset_id).name == "old"
+    assert repository.get_dataset("old1").name == "old"
+    assert "cache_key" in {c["name"] for c in inspect(engine).get_columns("jobs")}
     engine.dispose()
 
 

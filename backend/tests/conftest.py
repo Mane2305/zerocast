@@ -22,6 +22,7 @@ def settings(tmp_path: Path) -> Settings:
         storage_dir=tmp_path / "files",
         load_model=False,
         num_samples=TINY_SAMPLES,
+        prewarm=False,  # tests that want it turn it on explicitly
     )
 
 

@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
-from app.db import AnnotationRow, DatasetRow, JobRow, utcnow
+from app.db import AnnotationRow, DatasetRow, JobRow, SeriesForecastRow, utcnow
 
 
 def new_id() -> str:
@@ -48,6 +48,7 @@ class JobRecord:
     job_id: str = field(default_factory=new_id)
     created_at: datetime = field(default_factory=utcnow)
     finished_at: datetime | None = None
+    cache_key: str | None = None
 
 
 @dataclass
@@ -96,6 +97,29 @@ class Repository:
         with self._sessions() as session:
             row = session.get(JobRow, job_id)
             return _to_record(row, JobRecord) if row else None
+
+    def find_reusable_job(self, cache_key: str) -> JobRecord | None:
+        """Newest job with this key that has not failed (queued, running or succeeded)."""
+        with self._sessions() as session:
+            row = session.scalars(
+                select(JobRow)
+                .where(JobRow.cache_key == cache_key, JobRow.status != "failed")
+                .order_by(JobRow.created_at.desc())
+                .limit(1)
+            ).first()
+            return _to_record(row, JobRecord) if row else None
+
+    # Per-item forecast cache
+    def get_series_forecast(self, cache_key: str) -> dict[str, Any] | None:
+        with self._sessions() as session:
+            row = session.get(SeriesForecastRow, cache_key)
+            return row.result if row else None
+
+    def put_series_forecast(self, cache_key: str, dataset_id: str, result: dict[str, Any]) -> None:
+        with self._sessions.begin() as session:
+            session.merge(
+                SeriesForecastRow(cache_key=cache_key, dataset_id=dataset_id, result=result)
+            )
 
     def update_job(self, job_id: str, **changes: Any) -> JobRecord:
         unknown = set(changes) - _JOB_UPDATABLE

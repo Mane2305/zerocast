@@ -6,8 +6,19 @@
 
 Needs a Modal secret named `zerocast` holding ZC_DB_URL (Neon) and ZC_CORS_ORIGINS
 (the Vercel domain, JSON list), and optionally HF_TOKEN. See backend/README.md "Deploy (B14)".
+
+Fast cold starts (B15):
+- Memory snapshot: imports, weight loading and a warm-up forecast run once in
+  `@modal.enter(snap=True)`; later cold starts restore that memory instead of redoing them.
+  The model is on CPU, so the loaded weights are part of the snapshot.
+- Threads (the job worker, the model worker) are started only after the restore
+  (`snap=False`), since a snapshot cannot carry running threads.
+- Weights load with HF_HUB_OFFLINE=1 from the Volume: no Hugging Face network checks.
+- ZC_TORCH_THREADS=4: the container sees the host's CPU count, and too many threads is slower.
+- Keep-warm schedule: one container on weekdays 10:00-18:00 IST, scale to zero otherwise.
 """
 
+import os
 from pathlib import Path
 
 import modal
@@ -15,6 +26,8 @@ import modal
 HERE = Path(__file__).resolve().parent
 WEIGHTS_DIR = "/data/hf"
 UPLOADS_DIR = "/data/uploads"
+APP_NAME = "zerocast"
+TIMEZONE = "Asia/Kolkata"
 
 weights = modal.Volume.from_name("zerocast-weights", create_if_missing=True)
 uploads = modal.Volume.from_name("zerocast-uploads", create_if_missing=True)
@@ -29,13 +42,16 @@ image = (
             "ZC_ENV": "prod",
             "ZC_DEVICE": "cpu",
             "ZC_STORAGE_DIR": UPLOADS_DIR,
+            # cpu=2 below is 2 physical cores = 4 vCPU.
+            "ZC_TORCH_THREADS": "4",
+            "OMP_NUM_THREADS": "4",
         }
     )
     .add_local_python_source("app")
     .add_local_dir(HERE / "migrations", "/root/migrations")
 )
 
-app = modal.App("zerocast", image=image)
+app = modal.App(APP_NAME, image=image)
 secrets = [modal.Secret.from_name("zerocast")]
 volumes = {WEIGHTS_DIR: weights, UPLOADS_DIR: uploads}
 
@@ -51,7 +67,7 @@ def download_weights() -> None:
     weights.commit()
 
 
-@app.function(
+@app.cls(
     volumes=volumes,
     secrets=secrets,
     cpu=2,
@@ -60,14 +76,63 @@ def download_weights() -> None:
     # One container only: jobs run on an in-process worker and the Yug pipeline must never
     # be called from two places at once (CLAUDE.md rule 6, DECISIONS #10).
     max_containers=1,
-    # Stay up between polls so a running job is not cut off; a job longer than this with no
-    # requests at all can still be lost on scale-down (it is then marked failed on restart).
-    scaledown_window=900,
+    # Maximum allowed (20 min): stay up between polls so a running job is not cut off.
+    scaledown_window=1200,
     timeout=3600,
+    enable_memory_snapshot=True,
 )
 @modal.concurrent(max_inputs=50)
-@modal.asgi_app()
-def api():
-    from app.main import create_app
+class Api:
+    @modal.enter(snap=True)
+    def load_model(self) -> None:
+        """Captured in the snapshot: imports, weights in memory, one warm-up forecast."""
+        os.environ["HF_HUB_OFFLINE"] = "1"  # read before huggingface_hub is imported
+        import torch
 
-    return create_app()
+        from app.config import get_settings
+        from app.engine.yug_engine import load_pipeline, warm_up
+
+        settings = get_settings()
+        torch.set_num_threads(settings.torch_threads or 4)
+        self.pipeline = load_pipeline(settings.model_id, "cpu", settings.model_revision)
+        warm_up(self.pipeline, settings.num_samples)
+
+    @modal.enter(snap=False)
+    def start(self) -> None:
+        """After restore: threads, the database connection and the FastAPI app."""
+        import torch
+
+        from app.config import get_settings
+        from app.engine import YugEngine
+        from app.main import create_app
+
+        settings = get_settings()
+        torch.set_num_threads(settings.torch_threads or 4)
+        engine = YugEngine(
+            lambda: self.pipeline,  # already loaded: the worker thread just takes it
+            num_samples=settings.num_samples,
+            model_name=settings.model_id,
+            revision=settings.model_revision,
+            torch_threads=settings.torch_threads,
+        )
+        self.web = create_app(settings, engine=engine)
+
+    @modal.asgi_app()
+    def api(self):
+        return self.web
+
+
+def _set_min_containers(count: int) -> None:
+    modal.Cls.from_name(APP_NAME, "Api")().update_autoscaler(min_containers=count)
+
+
+@app.function(schedule=modal.Cron("0 10 * * 1-5", timezone=TIMEZONE))
+def keep_warm() -> None:
+    """Working hours: one container always up, so nobody waits for a cold start
+    (about $0.13/h for 2 cores + 4 GiB: ~$22/month for 8 h on weekdays, inside the $30 credit)."""
+    _set_min_containers(1)
+
+
+@app.function(schedule=modal.Cron("0 18 * * 1-5", timezone=TIMEZONE))
+def allow_scale_to_zero() -> None:
+    _set_min_containers(0)

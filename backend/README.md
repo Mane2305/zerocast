@@ -281,6 +281,46 @@ uv run python -m scripts.precompute_demos --only manufacturing --out <some dir>
   `data/scripts/README.md`). Get the owner's go-ahead first. The owner approved writing
   `retail/` and `manufacturing/` there on 2026-10-24.
 
+## Fast inference (B15)
+
+Measured locally (retail file, 5 items, 2 years daily), before → after:
+
+| What | Before | After |
+|---|---|---|
+| Model call, 1 item, 14 days (p50) | 230-320 ms | 58 ms |
+| Forecast job, 1 item, end to end | ~1.7 s | 0.15-0.2 s |
+| Forecast the user asks for right after upload | full run | ready or already running |
+| Same request again (any job except review) | full run | instant (job reused) |
+
+- **Threads**: `ZC_TORCH_THREADS` (default: half the CPUs, max 8). PyTorch's default (all
+  logical CPUs) was up to 8x slower; containers see the host's CPU count, so Modal sets 4.
+- **Warm-up**: one dummy forecast after loading (`ZC_WARMUP`), so the first user call is not
+  ~0.7 s slower. It uses its own random generator; seeded results are unchanged (tested).
+- **Prewarm after upload**: `ZC_PREWARM` (default on) forecasts the first
+  `ZC_PREWARM_MAX_ITEMS` (20) usable items at `ZC_PREWARM_HORIZON` (28, the Forecast page
+  default) in the background. It goes through the normal job queue, so a user job submitted
+  meanwhile waits for it (about 0.1-0.3 s per item).
+- **Job reuse**: each job stores `cache_key` = hash(job type, params). Posting an identical
+  request returns the existing queued, running or succeeded job (failed jobs are retried).
+  Review jobs are never reused: they include annotations, which can change.
+- **Per-item cache** (`series_forecasts` table, migration 0002): every item forecast is stored
+  by (dataset, item, horizon, seed) with 50 sample paths, so any later request containing that
+  item (any subset, any `return_paths` ≤ 50) skips the model. Datasets never change after upload
+  and forecasts are seeded, so stored results stay valid.
+- **Weights offline**: `HF_HUB_OFFLINE=1` skips Hugging Face network checks (weight load
+  6.1 s → 2.8 s locally). Use it once the weights are cached.
+- **Modal** (`modal_app.py`): an `Api` class with a **memory snapshot**. Imports, weights and
+  the warm-up forecast run once in `@modal.enter(snap=True)`; later cold starts restore that
+  memory. Threads, DB connection and the FastAPI app start after the restore. Plus
+  `scaledown_window=1200` (max) and a keep-warm schedule: one container on weekdays
+  10:00-18:00 IST (`keep_warm` / `allow_scale_to_zero` cron functions, ~$22/month), scale to
+  zero otherwise. Change the hours in `modal_app.py`.
+- Measure a deployment: `uv run python -m scripts.measure_latency --url <endpoint>`.
+
+Not done: batching several items into one model call (would need care to keep the sample
+paths identical to today's), bf16/int8 weights (could change forecasts; needs a backtest
+check first), GPU (not worth it for a 272M model at 58 ms per call).
+
 ## Deploy (B14): Neon + Modal
 
 Database migrations (Alembic, `backend/migrations/`):
@@ -333,6 +373,12 @@ Relative paths are resolved from the directory you start the server in (normally
 | `ZC_STORAGE_DIR` | `./storage/files` | Folder for uploaded files when `ZC_STORAGE=local` |
 | `ZC_DEVICE` | `cpu` | `cpu` or `cuda` for the model |
 | `ZC_NUM_SAMPLES` | `100` | Sample paths per forecast |
+| `ZC_TORCH_THREADS` | half the CPUs, max 8 | Model CPU threads (B15) |
+| `ZC_WARMUP` | `true` | Dummy forecast after loading |
+| `ZC_PREWARM` | `true` | Forecast the first items right after upload |
+| `ZC_PREWARM_HORIZON` | `28` | Horizon of that forecast |
+| `ZC_PREWARM_MAX_ITEMS` | `20` | Items in that forecast |
+| `HF_HUB_OFFLINE` | unset | `1` = load weights from the cache without network checks |
 | `HF_HOME` | HF default | Hugging Face cache (weights); `/data/hf` on Modal |
 | `ZC_LOAD_MODEL` | `true` | `false` starts the API without the model (forecast endpoints return 503) |
 | `ZC_MODEL_ID` | `birlaailabs/yug` | Hugging Face repo id, or a local folder with `config.json` + `model.safetensors` |

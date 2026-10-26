@@ -11,7 +11,7 @@ from app.api import datasets, jobs, model
 from app.config import Settings, get_settings
 from app.db import init_db, make_engine
 from app.engine import YugEngine
-from app.engine.yug_engine import load_pipeline
+from app.engine.yug_engine import default_threads, load_pipeline
 from app.errors import install_error_handlers
 from app.jobs import InProcessJobRunner
 from app.repository import Repository
@@ -31,6 +31,8 @@ def build_engine(settings: Settings) -> YugEngine | None:
         num_samples=settings.num_samples,
         model_name=settings.model_id,
         revision=settings.model_revision,
+        torch_threads=settings.torch_threads or default_threads(),
+        warmup=settings.warmup,
     )
 
 

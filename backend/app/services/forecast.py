@@ -1,5 +1,6 @@
 """Forecast job: univariate forecast + path summaries + risk metrics for each series."""
 
+import hashlib
 from collections.abc import Callable
 from typing import Any
 
@@ -16,6 +17,8 @@ from app.services.health_check import format_date, future_dates
 from app.storage import Storage
 
 SIGNIFICANT_DIGITS = 6
+# Paths kept in the per-item cache: the API maximum, so any return_paths can be sliced from it.
+CACHED_PATHS = 50
 
 
 def round_sig(values: Any, digits: int = SIGNIFICANT_DIGITS) -> Any:
@@ -108,6 +111,17 @@ def forecast_series(
     }
 
 
+def series_cache_key(dataset_id: str, series_id: str, horizon: int, seed: int) -> str:
+    text = f"forecast{dataset_id}{series_id}{horizon}{seed}"
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def with_paths(result: dict[str, Any], return_paths: int) -> dict[str, Any]:
+    """A cached item result trimmed to the requested number of sample paths."""
+    paths = result.get("sample_paths") or []
+    return {**result, "sample_paths": paths[:return_paths] if return_paths > 0 else None}
+
+
 def make_forecast_handler(
     repository: Repository, storage: Storage, engine: Callable[[], YugEngine | None]
 ) -> Handler:
@@ -118,19 +132,18 @@ def make_forecast_handler(
         frequency = record.meta["frequency"]
         results = []
         n = len(series_ids)
+        horizon, seed = params["horizon"], params["seed"]
         for i, sid in enumerate(series_ids):
             progress(100.0 * i / n, f"Forecasting series {i + 1} of {n}")
-            history = series_values(frame, sid)
-            result = forecast_series(
-                yug,
-                history,
-                frequency,
-                params["horizon"],
-                params["seed"],
-                is_additive(record),
-                params.get("return_paths", 0),
-            )
-            results.append({"series_id": sid, **result})
+            key = series_cache_key(record.dataset_id, sid, horizon, seed)
+            result = repository.get_series_forecast(key)
+            if result is None:
+                history = series_values(frame, sid)
+                result = forecast_series(
+                    yug, history, frequency, horizon, seed, is_additive(record), CACHED_PATHS
+                )
+                repository.put_series_forecast(key, record.dataset_id, result)
+            results.append({"series_id": sid, **with_paths(result, params.get("return_paths", 0))})
         return {"quantile_levels": yug.info()["quantile_levels"], "series": results}
 
     return handle

@@ -5,6 +5,8 @@ API can poll it. Model calls inside a job still go through the YugEngine worker.
 Phase 2 replaces InProcessJobRunner with a Modal-backed runner using the same interface.
 """
 
+import hashlib
+import json
 import logging
 import threading
 from collections.abc import Callable
@@ -15,7 +17,16 @@ from app.repository import JobRecord, Repository, utcnow
 
 logger = logging.getLogger(__name__)
 
-JOB_TYPES = ("forecast", "review", "factors")
+JOB_TYPES = ("forecast", "review", "factors", "accuracy")
+# Results that depend on more than (dataset, params): the review includes annotations.
+UNCACHED_JOB_TYPES = {"review"}
+
+
+def cache_key(job_type: str, params: dict[str, Any]) -> str:
+    """Datasets are immutable after upload and every model call is seeded, so the same
+    (job_type, params) always gives the same result."""
+    text = json.dumps({"job_type": job_type, "params": params}, sort_keys=True, default=str)
+    return hashlib.sha256(text.encode()).hexdigest()
 
 
 class JobFailed(Exception):
@@ -65,7 +76,16 @@ class InProcessJobRunner:
     def submit(self, job_type: str, params: dict[str, Any]) -> str:
         if job_type not in self._handlers:
             raise ValueError(f"No handler for job type {job_type!r}")
-        record = self._repository.add_job(JobRecord(job_type=job_type, params=params))
+        key = None if job_type in UNCACHED_JOB_TYPES else cache_key(job_type, params)
+        if key is not None:
+            # Same request already done or in progress (e.g. a double click, or the forecast
+            # started right after upload): return that job instead of running the model again.
+            reusable = self._repository.find_reusable_job(key)
+            if reusable is not None:
+                return reusable.job_id
+        record = self._repository.add_job(
+            JobRecord(job_type=job_type, params=params, cache_key=key)
+        )
         with self._lock:
             self._pending += 1
             self._idle.clear()

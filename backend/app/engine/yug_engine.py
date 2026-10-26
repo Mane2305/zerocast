@@ -13,6 +13,7 @@ the same seed, so an upstream change that breaks this fails loudly.
 
 import json
 import logging
+import os
 import threading
 import time
 from collections import deque
@@ -48,6 +49,12 @@ YUG_FREQ = {
 
 
 COVARIATE_MAX_HORIZON = 64
+MAX_DEFAULT_THREADS = 8
+
+
+def default_threads() -> int:
+    """Half the logical CPUs (≈ physical cores), at most 8: more threads made Yug slower."""
+    return max(1, min(MAX_DEFAULT_THREADS, (os.cpu_count() or 2) // 2))
 
 
 class EngineNotReady(RuntimeError):
@@ -100,8 +107,13 @@ class YugEngine:
         num_samples: int,
         model_name: str,
         revision: str | None = None,
+        torch_threads: int | None = None,
+        warmup: bool = False,
     ) -> None:
+        """``loader`` may also return an already-loaded pipeline (Modal memory snapshots)."""
         self.num_samples = num_samples
+        self.torch_threads = torch_threads
+        self.warmup = warmup
         self.model_name = model_name
         self.revision = revision
         self._pipeline: YugPipeline | None = None
@@ -114,13 +126,22 @@ class YugEngine:
     # ------------------------------------------------------------ lifecycle
     def _load(self, loader: Callable[[], YugPipeline]) -> None:
         started = time.perf_counter()
+        if self.torch_threads:
+            torch.set_num_threads(self.torch_threads)
         try:
-            self._pipeline = loader()
+            pipeline = loader()
+            if self.warmup:
+                warm_up(pipeline, self.num_samples)
+            self._pipeline = pipeline
         except BaseException as exc:
             self._load_error = exc
             logger.exception("Yug model failed to load")
             raise
-        logger.info("Yug model loaded in %.1f s", time.perf_counter() - started)
+        logger.info(
+            "Yug model ready in %.1f s (%d threads)",
+            time.perf_counter() - started,
+            torch.get_num_threads(),
+        )
 
     def wait_until_loaded(self, timeout: float | None = None) -> None:
         self._loaded.result(timeout)
@@ -237,6 +258,15 @@ class YugEngine:
             info["revision"] = code
         info["weights_revision"] = self.revision
         return info
+
+
+def warm_up(pipeline: YugPipeline, num_samples: int) -> None:
+    """One throwaway forecast: the first call pays one-off allocation costs (~0.7 s)."""
+    context = 100 + 10 * np.sin(np.arange(256, dtype=np.float32) * 2 * np.pi / 7)
+    with torch.inference_mode():
+        _sample_paths(
+            pipeline, context.astype(np.float32), "D", 14, num_samples, np.random.default_rng(0)
+        )
 
 
 def yug_commit() -> str | None:
