@@ -281,6 +281,45 @@ uv run python -m scripts.precompute_demos --only manufacturing --out <some dir>
   `data/scripts/README.md`). Get the owner's go-ahead first. The owner approved writing
   `retail/` and `manufacturing/` there on 2026-10-24.
 
+## Deploy (B14): Neon + Modal
+
+Database migrations (Alembic, `backend/migrations/`):
+- The app runs `alembic upgrade head` on startup (`app/db.py: init_db`), for SQLite and
+  Postgres alike. A database created before migrations existed is stamped first, so existing
+  local `storage/zerocast.db` files keep their data. `make migrate` does the same by hand.
+- New schema change: edit `app/db.py`, then
+  `uv run alembic revision --autogenerate -m "..."` and review the generated file.
+  `tests/test_db.py` fails if the migrations and the models drift apart.
+- `ZC_DB_URL` accepts Neon's URL as is (`postgresql://...?sslmode=require`); it is switched to
+  the psycopg 3 driver, with `pool_pre_ping` and no prepared statements (Neon's pooler).
+
+Modal (`modal_app.py`): FastAPI as a Modal ASGI endpoint, Python 3.11 image built with
+`uv sync --frozen --no-dev` (so yug stays pinned to the uv.lock commit), CPU 2 / 4096 MB,
+`min_containers=0`, **`max_containers=1`** (single model worker), 15 min scale-down window,
+1 h timeout. Volumes: `zerocast-weights` (HF cache, `HF_HOME=/data/hf`) and
+`zerocast-uploads` (Parquet files, `ZC_STORAGE_DIR=/data/uploads`). Neon holds metadata only.
+
+One-time setup (owner):
+1. **Neon**: create a project → copy the **pooled** connection string.
+2. **Modal**: `cd backend && uv run --group deploy modal token new` (browser login), then
+   create the secret (Modal dashboard → Secrets → Custom, or CLI):
+   ```bash
+   uv run --group deploy modal secret create zerocast \
+     ZC_DB_URL='postgresql://...-pooler...neon.tech/neondb?sslmode=require' \
+     ZC_CORS_ORIGINS='["https://<your-app>.vercel.app"]'
+   # optional: HF_TOKEN=hf_...  (higher Hugging Face rate limits)
+   ```
+3. `make deploy-weights` (downloads ~1.1 GB once into the Volume), then `make deploy`.
+   Modal prints the endpoint, e.g. `https://<workspace>--zerocast-api.modal.run`.
+4. Check: `curl https://<endpoint>/health` (first call cold-starts: ~20-40 s plus model
+   load; `model_loaded` turns true when ready).
+5. **Vercel**: set `NEXT_PUBLIC_API_URL` = the endpoint → redeploy.
+
+Limits: jobs run in-process in the single container. Polling keeps it alive; if a job runs
+with no requests for longer than the scale-down window it can be cut off and is reported as
+`failed` (`interrupted`) on the next start. CORS allows only `ZC_CORS_ORIGINS` (Vercel preview
+URLs need adding explicitly). Per-IP rate limiting is not implemented yet.
+
 ## Configuration
 
 All settings come from environment variables (or a git-ignored `backend/.env` file).
@@ -289,11 +328,12 @@ Relative paths are resolved from the directory you start the server in (normally
 | Variable | Default | Meaning |
 |---|---|---|
 | `ZC_ENV` | `local` | `local` or `prod` |
-| `ZC_DB_URL` | `sqlite:///./storage/zerocast.db` | SQLAlchemy URL. Phase 2: Supabase Postgres URL |
+| `ZC_DB_URL` | `sqlite:///./storage/zerocast.db` | SQLAlchemy URL. Deployed: Neon's pooled Postgres URL (B14) |
 | `ZC_STORAGE` | `local` | `local` (folder) or `supabase` (Phase 2, not implemented yet) |
 | `ZC_STORAGE_DIR` | `./storage/files` | Folder for uploaded files when `ZC_STORAGE=local` |
 | `ZC_DEVICE` | `cpu` | `cpu` or `cuda` for the model |
 | `ZC_NUM_SAMPLES` | `100` | Sample paths per forecast |
+| `HF_HOME` | HF default | Hugging Face cache (weights); `/data/hf` on Modal |
 | `ZC_LOAD_MODEL` | `true` | `false` starts the API without the model (forecast endpoints return 503) |
 | `ZC_MODEL_ID` | `birlaailabs/yug` | Hugging Face repo id, or a local folder with `config.json` + `model.safetensors` |
 | `ZC_MODEL_REVISION` | — | Optional Hugging Face revision (commit/tag) for the weights; reported as `weights_revision` in `/model/info` (`revision` is the pinned yug code commit) |
