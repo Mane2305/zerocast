@@ -233,15 +233,17 @@ uv run python -m scripts.precompute_demos --out ../frontend/public/demo   # real
 uv run python -m scripts.precompute_demos --only manufacturing --out <some dir>
 ```
 
-- Writes `<out>/<demo_id>/{dataset,history,histories,forecast,review,factors}.json` in the
-  contract shapes (Dataset, SeriesHistory, [SeriesHistory], ForecastResult, ReviewResult,
-  FactorResult).
+- Writes `<out>/<demo_id>/{dataset,health,history,histories,forecast,accuracy,review,factors}.json`
+  in the contract shapes (Dataset, HealthReport, SeriesHistory, [SeriesHistory],
+  ForecastResult, AccuracyResult, ReviewResult, FactorResult).
+- Forecasts carry 30 `sample_paths` per series (possible futures). `accuracy.json` backtests
+  every series at the demo horizon from 8 origins (B11 rules).
 - Demo ids are `retail` (UCI Online Retail II, 5 product families, primary series `BAGS`,
   horizon 14, so it stops before the Christmas shutdown) and
   `manufacturing` (cement, horizon 12, `additive=false` because it is an index; factor
   check on steel, electricity and coal). They are separate from the frontend's synthetic
   `*-mock` fixtures.
-- `forecast.json` and `review.json` cover every usable series, primary first.
+- `forecast.json`, `accuracy.json` and `review.json` cover every usable series, primary first.
   `histories.json` is an array of SeriesHistory in the same order; `history.json` is the
   primary series alone (kept for the current loader). `factors.json` is for the primary series.
 - Forecasts use seed 0, so reruns are identical apart from `latency_ms`.

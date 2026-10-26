@@ -6,8 +6,11 @@ data/scripts (B5), and writes, matching frontend/src/lib/load-demo.ts:
     <out>/<demo_id>/dataset.json    Dataset
     <out>/<demo_id>/history.json    SeriesHistory of the demo's primary series
     <out>/<demo_id>/histories.json  [SeriesHistory] for every forecast series, primary first
-    <out>/<demo_id>/forecast.json   ForecastResult for every usable series, primary first
+    <out>/<demo_id>/forecast.json   ForecastResult for every usable series, primary first,
+                                    with 30 sample paths each (possible futures)
+    <out>/<demo_id>/accuracy.json   AccuracyResult (backtest) for the same series
     <out>/<demo_id>/review.json     ReviewResult (year in review) for the same series
+    <out>/<demo_id>/health.json     HealthReport (also inside dataset.json)
     <out>/<demo_id>/factors.json    FactorResult for the primary series (if it has factors)
 
     cd backend
@@ -28,15 +31,16 @@ from app.config import get_settings
 from app.engine import YugEngine
 from app.main import build_engine
 from app.repository import DatasetRecord
-from app.services import factors, review
+from app.services import accuracy, factors, review
 from app.services.datasets import dataset_response, history_from_frame
-from app.services.forecast import forecast_paths, forecast_series, series_values
+from app.services.forecast import forecast_paths, forecast_series, round_sig, series_values
 from app.services.health_check import run_health_check
 
 ROOT = Path(__file__).resolve().parents[2]
 PROCESSED = ROOT / "data" / "processed"
 DEFAULT_OUT = ROOT / "frontend" / "public" / "demo"
 SEED = 0
+RETURN_PATHS = 30
 
 
 @dataclass(frozen=True)
@@ -52,6 +56,7 @@ class DemoSpec:
     additive: bool = True
     # Factor columns to check; None checks every factor column in the dataset.
     factors: tuple[str, ...] | None = None
+    accuracy_origins: int = 8
 
 
 DEMOS = (
@@ -106,11 +111,11 @@ def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[s
             "additive": spec.additive,
         },
     )
-    histories, forecasts, reviews = [], [], []
+    histories, forecasts, reviews, backtests = [], [], [], []
     for sid in series_ids:
         values = series_values(health.frame, sid)
         forecast = forecast_series(
-            engine, values, health.frequency, spec.horizon, SEED, spec.additive
+            engine, values, health.frequency, spec.horizon, SEED, spec.additive, RETURN_PATHS
         )
         # Demos must always show the capacity-risk grid and the last-year overlay.
         if not forecast["step_exceedance_grid"]["percentiles"] or forecast["last_year"] is None:
@@ -121,8 +126,22 @@ def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[s
         histories.append(history_from_frame(health.frame, sid, health.factor_columns))
         forecasts.append({"series_id": sid, **forecast})
         reviews.append(review_series(spec, sid, values, health.frequency, engine))
+        backtests.append(backtest_series(spec, values, health.frequency, engine))
+    if not all(bt.origins for bt in backtests):
+        raise ValueError(f"{spec.demo_id}: some series are too short to backtest")
+    levels = engine.info()["quantile_levels"]
     files = {
         "dataset": dataset_response(record),
+        "health": health.report,
+        "accuracy": {
+            "horizon": spec.horizon,
+            "origins": max(bt.origins for bt in backtests),
+            "series": [
+                accuracy.series_result(sid, bt, levels, round_sig)
+                for sid, bt in zip(series_ids, backtests, strict=True)
+            ],
+            "portfolio": accuracy.portfolio(backtests),
+        },
         "review": {"series": reviews},
         "history": histories[0],
         "histories": histories,
@@ -137,15 +156,28 @@ def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[s
     return files
 
 
-def review_series(
-    spec: DemoSpec, series_id: str, values: pd.Series, frequency: str, engine: YugEngine
-) -> dict:
-    lookback, step = review.default_window(frequency)
-
+def model_forecaster(engine: YugEngine, frequency: str):
     def forecaster(context, horizon, seed):
         quantiles, paths, _ = forecast_paths(engine, context, horizon, frequency, seed)
         return quantiles, paths
 
+    return forecaster
+
+
+def backtest_series(
+    spec: DemoSpec, values: pd.Series, frequency: str, engine: YugEngine
+) -> accuracy.Backtest:
+    forecaster = model_forecaster(engine, frequency)
+    return accuracy.backtest(
+        values, spec.horizon, spec.accuracy_origins, frequency, forecaster, seed=SEED
+    )
+
+
+def review_series(
+    spec: DemoSpec, series_id: str, values: pd.Series, frequency: str, engine: YugEngine
+) -> dict:
+    lookback, step = review.default_window(frequency)
+    forecaster = model_forecaster(engine, frequency)
     periods = review.replay(values, lookback, step, forecaster, seed=SEED)
     events = review.calendar_events([p.date for p in periods], frequency, spec.holiday_country)
     return review.summarize(series_id, periods, events, {}, 5, frequency, spec.additive)

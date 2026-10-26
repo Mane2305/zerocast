@@ -7,6 +7,8 @@ import pytest
 from scripts import precompute_demos
 from tests.contract import assert_matches_schema
 
+from .conftest import TINY_SAMPLES
+
 
 def monthly_frame(months=60) -> pd.DataFrame:
     dates = pd.date_range("2018-01-01", periods=months, freq="MS")
@@ -41,9 +43,11 @@ def test_writes_contract_shaped_files(tmp_path, spec, tiny_engine):
     written = precompute_demos.precompute([spec], tiny_engine, out)
 
     assert sorted(p.name for p in written) == [
+        "accuracy.json",
         "dataset.json",
         "factors.json",
         "forecast.json",
+        "health.json",
         "histories.json",
         "history.json",
         "review.json",
@@ -62,6 +66,15 @@ def test_writes_contract_shaped_files(tmp_path, spec, tiny_engine):
     assert [f["factor"] for f in factor_result["factors"]] == ["steel"]
     for series in forecast["series"]:
         assert_matches_schema("SeriesForecast", series)
+        # 30 requested, capped at the tiny engine's 20 samples
+        assert np.array(series["sample_paths"]).shape == (min(30, TINY_SAMPLES), 12)
+    accuracy_result = json.loads((out / "manufacturing" / "accuracy.json").read_text())
+    assert_matches_schema("AccuracyResult", accuracy_result)
+    assert accuracy_result["origins"] == 2  # 60 months: origins at 36 and 48
+    assert [s["series_id"] for s in accuracy_result["series"]] == ["cement"]
+    assert_matches_schema(
+        "HealthReport", json.loads((out / "manufacturing" / "health.json").read_text())
+    )
     for item in json.loads((out / "manufacturing" / "histories.json").read_text()):
         assert_matches_schema("SeriesHistory", item)
 
