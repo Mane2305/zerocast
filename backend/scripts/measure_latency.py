@@ -2,7 +2,8 @@
 
     cd backend
     uv run python -m scripts.measure_latency --url https://<workspace>--zerocast-api-api.modal.run
-    uv run python -m scripts.measure_latency --url http://127.0.0.1:8000 --file ../data/processed/retail_online.parquet
+    uv run python -m scripts.measure_latency --url http://127.0.0.1:8000 \
+        --file ../data/processed/retail_online.parquet
 
 Uses only the public API, so it works against a local server or the Modal endpoint. Without
 --file it uploads a small synthetic daily dataset (5 items, 2 years).
@@ -58,7 +59,8 @@ class Client:
         boundary = uuid.uuid4().hex
         body = (
             (
-                f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{name}"\r\n'
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="file"; filename="{name}"\r\n'
                 "Content-Type: application/octet-stream\r\n\r\n"
             ).encode()
             + data
