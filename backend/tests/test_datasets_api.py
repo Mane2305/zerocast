@@ -1,4 +1,5 @@
 import io
+import json
 
 import pandas as pd
 
@@ -139,3 +140,58 @@ def test_additive_flag_defaults_true_and_can_be_false(client):
     assert default["additive"] is True and index["additive"] is False
     assert_matches_schema("Dataset", index)
     assert client.get(f"/datasets/{index['dataset_id']}").json()["additive"] is False
+
+
+def test_upload_reports_v2_fields_for_the_default_template(client):
+    body = upload(client, template_csv()).json()
+    assert body["input_format"] == "long" and body["hierarchy"] == []
+    assert "unit" not in body and "attributes" not in body["series"][0]
+
+
+def test_upload_long_with_hierarchy_columns(client):
+    df = pd.read_csv(io.BytesIO(template_csv(price=False)))
+    df["store"] = "S1"
+    df = df.rename(columns={"series_id": "product", "target": "units", "date": "day"})
+    form = {
+        "id_columns": '["store", "product"]',
+        "target_column": "units",
+        "date_column": "day",
+        "unit": "units",
+    }
+
+    response = upload(client, df.to_csv(index=False).encode(), **form)
+
+    assert response.status_code == 201, response.json()
+    body = response.json()
+    assert_matches_schema("Dataset", body)
+    assert body["hierarchy"] == ["store", "product"] and body["unit"] == "units"
+    assert [s["series_id"] for s in body["series"]] == ["S1|A", "S1|B"]
+    assert body["series"][0]["attributes"] == {"store": "S1", "product": "A"}
+    stored = client.get(f"/datasets/{body['dataset_id']}").json()
+    assert stored["hierarchy"] == ["store", "product"]
+
+
+def test_upload_wide_json(client):
+    dates = pd.date_range("2024-01-01", periods=40, freq="D").strftime("%Y-%m-%d")
+    records = [{"date": d, "north": 10 + i % 7, "south": 20 + i % 5} for i, d in enumerate(dates)]
+
+    response = upload(client, json.dumps(records).encode(), filename="sales.json")
+
+    assert response.status_code == 201, response.json()
+    body = response.json()
+    assert_matches_schema("Dataset", body)
+    assert body["input_format"] == "wide"
+    assert [s["series_id"] for s in body["series"]] == ["north", "south"]
+    history = client.get(f"/datasets/{body['dataset_id']}/series/north").json()
+    assert history["target"][:2] == [10.0, 11.0]
+
+
+def test_bad_id_columns_is_422(client):
+    response = upload(client, template_csv(), id_columns="store")
+    assert response.status_code == 422 and response.json()["code"] == "invalid_id_columns"
+
+
+def test_bad_format_is_422(client):
+    response = upload(client, template_csv(), format="sideways")
+    assert response.status_code == 422
+    assert_matches_schema("Error", response.json())

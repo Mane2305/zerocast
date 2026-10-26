@@ -87,6 +87,32 @@ curl http://localhost:8000/datasets/<dataset_id>/series/<series_id>
 - Dates in responses are ISO 8601 without a timezone (`2024-01-01T00:00:00`), because business
   dates have none. Adding `Z` would shift days for users west of UTC.
 
+## Input v2 (B13)
+
+```bash
+# long file with two ID columns and custom names
+curl -F file=@sales.csv -F 'id_columns=["store","product"]' -F target_column=units      -F date_column=day -F unit=units http://localhost:8000/datasets
+# wide file (date + one column per item), CSV, Parquet or JSON records
+curl -F file=@wide.json http://localhost:8000/datasets
+```
+
+- `app/services/reshape.py` turns any accepted upload into the internal long template before
+  the health check. Column names are matched case- and space-insensitively.
+- `format=auto` (default) picks **long** when the target, `series_id` or `id_columns` are
+  present, and **wide** when every non-date column is numeric; otherwise the long-format
+  error lists the missing columns. `format=long|wide` forces it.
+- Long: `id_columns` (JSON array, default `["series_id"]`) build `series_id` as `a|b`;
+  `Dataset.hierarchy` lists them and each item gets `attributes` (`{"store": "S1", ...}`).
+  The remaining columns are drivers (factors), as before. Wide: every non-date column is an
+  item; no drivers.
+- JSON uploads must be an array of records. Excel is converted in the browser.
+- `unit` comes from the form field, or else from a `unit` column with a single value (the
+  column is then dropped). Display only.
+- `closed_periods_zero` (info, never downgrades a series) counts zeros that look like
+  closures: on daily data, a weekday where at least 80% of a series' values are 0 (4+ weeks
+  observed); on any frequency, a date where every observed series is 0 (2+ series). It is a
+  subset of `zero_values`, which still counts every zero.
+
 ## Jobs and forecasts (B4)
 
 ```bash

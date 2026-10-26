@@ -160,6 +160,11 @@ def test_factor_subset(tmp_path, spec, tiny_engine):
         precompute_demos.precompute([unknown], tiny_engine, tmp_path / "out2")
 
 
+def test_demo_units():
+    units = {d.demo_id: d.unit for d in precompute_demos.DEMOS}
+    assert units == {"retail": "units", "manufacturing": "index points"}
+
+
 def test_cement_demo_spec_matches_review_fixes():
     cement = next(d for d in precompute_demos.DEMOS if d.demo_id == "manufacturing")
     assert cement.additive is False

@@ -1,6 +1,6 @@
 import re
 from pathlib import PurePath
-from typing import Annotated
+from typing import Annotated, Literal
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, UploadFile
@@ -12,6 +12,7 @@ from app.repository import AnnotationRecord, DatasetRecord, Repository
 from app.schemas import Annotation, AnnotationInput, Dataset, Error, SeriesHistory
 from app.services import datasets
 from app.services.health_check import DatasetError, format_date
+from app.services.reshape import InputOptions, parse_id_columns
 from app.storage import Storage
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
@@ -55,6 +56,11 @@ async def create_dataset(
     name: Annotated[str | None, Form()] = None,
     holiday_country: Annotated[str | None, Form()] = None,
     additive: Annotated[bool, Form()] = True,
+    format: Annotated[Literal["auto", "long", "wide"], Form()] = "auto",
+    date_column: Annotated[str | None, Form()] = None,
+    target_column: Annotated[str | None, Form()] = None,
+    id_columns: Annotated[str | None, Form()] = None,
+    unit: Annotated[str | None, Form()] = None,
 ) -> dict:
     if holiday_country is not None:
         holiday_country = holiday_country.strip().upper() or None
@@ -65,8 +71,22 @@ async def create_dataset(
     data = await _read_limited(file)
     display_name = (name or "").strip() or PurePath(file.filename or "dataset").stem
     try:
+        options = InputOptions(
+            format=format,
+            date_column=(date_column or "").strip() or None,
+            target_column=(target_column or "").strip() or None,
+            id_columns=parse_id_columns(id_columns),
+            unit=(unit or "").strip() or None,
+        )
         record = await run_in_threadpool(
-            datasets.ingest, data, display_name, holiday_country, repository, storage, additive
+            datasets.ingest,
+            data,
+            display_name,
+            holiday_country,
+            repository,
+            storage,
+            additive,
+            options,
         )
     except DatasetError as exc:
         raise ApiError(422, exc.code, exc.message, exc.details) from exc

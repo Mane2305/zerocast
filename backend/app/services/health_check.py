@@ -35,10 +35,15 @@ CHECKS: dict[str, tuple[str, str, str]] = {
         f"Ignored factor columns beyond the first {MAX_FACTORS}",
     ),
     "zero_values": ("Zero values", "info", "Kept as 0 (e.g. closed days with no sales)"),
+    "closed_periods_zero": ("Closed periods filled as 0", "info", "Kept as 0"),
 }
 EXCLUDING_CHECKS = {"too_short", "irregular_spacing"}
 # Listed on the series for information only; they do not turn a series into a warning.
-INFO_ONLY_CHECKS = {"zero_values"}
+INFO_ONLY_CHECKS = {"zero_values", "closed_periods_zero"}
+# A weekday counts as a closing day when at least this share of its values are 0
+# (daily data, at least CLOSED_MIN_WEEKS weeks observed).
+CLOSED_WEEKDAY_SHARE = 0.8
+CLOSED_MIN_WEEKS = 4
 
 # Frequencies with a fixed step, and calendar frequencies stepped in months.
 _FIXED_STEPS = {
@@ -198,6 +203,29 @@ def _pct(part: int, whole: int) -> float:
     return 100.0 * part / whole if whole else 0.0
 
 
+def closed_period_zeros(frame: pd.DataFrame, frequency: str) -> pd.Series:
+    """Zeros that look like closures rather than real zero demand (a heuristic):
+    - daily data: a weekday on which a series is almost always 0 (e.g. closed on Saturdays);
+    - any frequency, two or more series: a date on which every observed series is 0
+      (a shutdown such as the Christmas break).
+    """
+    zero = frame["target"] == 0
+    closed = pd.Series(False, index=frame.index)
+    if frequency == "daily":
+        observed = frame["target"].notna()
+        key = [frame["series_id"], frame["date"].dt.day_of_week]
+        share = zero.groupby(key).transform("sum") / observed.groupby(key).transform("sum")
+        enough = observed.groupby(key).transform("sum") >= CLOSED_MIN_WEEKS
+        closed |= zero & enough & (share >= CLOSED_WEEKDAY_SHARE)
+    if frame["series_id"].nunique() > 1:
+        observed = frame[frame["target"].notna()]
+        all_zero = observed.groupby("date")["target"].agg(lambda v: bool((v == 0).all()))
+        many = observed.groupby("date")["series_id"].nunique() > 1
+        shutdown_dates = all_zero.index[all_zero & many]
+        closed |= zero & frame["date"].isin(shutdown_dates)
+    return closed
+
+
 def run_health_check(raw: pd.DataFrame) -> HealthResult:
     df, factor_columns, ignored_factors = validate_template(raw)
     value_columns = ["target", *factor_columns]
@@ -253,6 +281,10 @@ def run_health_check(raw: pd.DataFrame) -> HealthResult:
     zero_series = frame.loc[zero, "series_id"].unique().tolist()
     for sid in zero_series:
         issues[sid].append("zero_values")
+    closed = closed_period_zeros(frame, frequency)
+    closed_series = frame.loc[closed, "series_id"].unique().tolist()
+    for sid in closed_series:
+        issues[sid].append("closed_periods_zero")
 
     summaries = []
     for sid, group in frame.groupby("series_id", sort=True):
@@ -322,6 +354,14 @@ def run_health_check(raw: pd.DataFrame) -> HealthResult:
     checks.append(too_many)
     checks.append(
         _check("zero_values", int(zero.sum()), _pct(int(zero.sum()), observed_rows), zero_series)
+    )
+    checks.append(
+        _check(
+            "closed_periods_zero",
+            int(closed.sum()),
+            _pct(int(closed.sum()), observed_rows),
+            closed_series,
+        )
     )
 
     return HealthResult(

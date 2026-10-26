@@ -7,6 +7,7 @@ import pandas as pd
 
 from app.repository import DatasetRecord, Repository
 from app.services.health_check import DatasetError, format_date, run_health_check
+from app.services.reshape import InputOptions, looks_like_json, read_json_records, to_long
 from app.storage import Storage
 
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -14,9 +15,11 @@ PARQUET_MAGIC = b"PAR1"
 
 
 def read_upload(data: bytes) -> pd.DataFrame:
-    """Parse Parquet (detected by magic bytes) or CSV. Raises DatasetError."""
+    """Parse Parquet (detected by magic bytes), JSON records or CSV. Raises DatasetError."""
     if not data:
         raise DatasetError("empty_file", "The file is empty")
+    if looks_like_json(data):
+        return read_json_records(data)
     try:
         if data[:4] == PARQUET_MAGIC:
             return pd.read_parquet(io.BytesIO(data))
@@ -25,7 +28,7 @@ def read_upload(data: bytes) -> pd.DataFrame:
     except (ValueError, UnicodeDecodeError, OSError, pd.errors.ParserError) as exc:
         raise DatasetError(
             "unreadable_file",
-            "Could not read the file as Parquet or UTF-8 CSV",
+            "Could not read the file as Parquet, JSON or UTF-8 CSV",
             {"reason": str(exc)},
         ) from exc
 
@@ -41,8 +44,13 @@ def ingest(
     repository: Repository,
     storage: Storage,
     additive: bool = True,
+    options: InputOptions | None = None,
 ) -> DatasetRecord:
-    result = run_health_check(read_upload(data))
+    reshaped = to_long(read_upload(data), options)
+    result = run_health_check(reshaped.frame)
+    for summary in result.series:
+        if summary["series_id"] in reshaped.attributes:
+            summary["attributes"] = reshaped.attributes[summary["series_id"]]
     record = DatasetRecord(name=name, storage_key="", holiday_country=holiday_country)
     record.storage_key = clean_key(record.dataset_id)
     buffer = io.BytesIO()
@@ -55,6 +63,9 @@ def ingest(
         "series": result.series,
         "health": result.report,
         "additive": additive,
+        "unit": reshaped.unit,
+        "hierarchy": reshaped.hierarchy,
+        "input_format": reshaped.input_format,
     }
     return repository.add_dataset(record)
 
@@ -75,6 +86,9 @@ def dataset_response(record: DatasetRecord) -> dict[str, Any]:
         "series_count": len(meta["series"]),
         "factor_columns": meta["factor_columns"],
         "additive": is_additive(record),
+        "unit": meta.get("unit"),
+        "hierarchy": meta.get("hierarchy", []),
+        "input_format": meta.get("input_format", "long"),
         "date_range": meta["date_range"],
         "series": meta["series"],
         "health": meta["health"],

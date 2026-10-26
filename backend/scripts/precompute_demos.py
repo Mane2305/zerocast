@@ -57,6 +57,7 @@ class DemoSpec:
     # Factor columns to check; None checks every factor column in the dataset.
     factors: tuple[str, ...] | None = None
     accuracy_origins: int = 8
+    unit: str | None = None
 
 
 DEMOS = (
@@ -66,6 +67,7 @@ DEMOS = (
         source=PROCESSED / "retail_online.parquet",
         holiday_country="GB",
         primary_series="BAGS",
+        unit="units",
         # The data ends on Fri 9 Dec 2011; 14 days stops before the Christmas shutdown,
         # which Yug cannot anticipate from two seasons of history.
         horizon=14,
@@ -76,6 +78,7 @@ DEMOS = (
         source=PROCESSED / "manufacturing_cement.parquet",
         holiday_country="IN",
         primary_series="cement",
+        unit="index points",
         horizon=12,
         factor_horizon=6,
         additive=False,
@@ -109,6 +112,9 @@ def build_demo(spec: DemoSpec, frame: pd.DataFrame, engine: YugEngine) -> dict[s
             "series": health.series,
             "health": health.report,
             "additive": spec.additive,
+            "unit": spec.unit,
+            "hierarchy": [],
+            "input_format": "long",
         },
     )
     histories, forecasts, reviews, backtests = [], [], [], []

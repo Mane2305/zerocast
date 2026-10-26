@@ -50,6 +50,7 @@ def test_clean_dataset_is_ready_with_all_checks_zero():
         "irregular_spacing",
         "too_many_factors",
         "zero_values",
+        "closed_periods_zero",
     ]
     assert all(c["count"] == 0 and c["severity"] == "info" for c in result.report["checks"])
     assert {s["status"] for s in result.series} == {"ready"}
@@ -221,3 +222,36 @@ def test_zero_values_are_reported_as_info_without_downgrading_the_series():
     assert zero["action_taken"].startswith("Kept as 0")
     assert series(result, "A")["status"] == "ready"
     assert "zero_values" in series(result, "A")["issues"]
+
+
+def test_closed_weekday_zeros_are_reported_as_closed_periods():
+    closed_saturdays = [0.0 if i % 7 == 5 else 10.0 + i for i in range(40)]
+    one_off_zero = good(offset=5)
+    one_off_zero[10] = 0.0
+    result = run_health_check(make_frame({"A": closed_saturdays, "B": one_off_zero}))
+
+    closed = check(result, "closed_periods_zero")
+    assert closed["severity"] == "info" and closed["count"] == 5
+    assert closed["affected_series"] == ["A"]
+    assert check(result, "zero_values")["count"] == 6  # B's single zero is not a closure
+    assert series(result, "A")["status"] == "ready"
+    assert "closed_periods_zero" in series(result, "A")["issues"]
+
+
+def test_shutdown_across_all_series_is_a_closed_period():
+    a, b = good(), good(offset=3)
+    for i in (20, 21):
+        a[i] = b[i] = 0.0
+    b[30] = 0.0  # only one series is 0 that month: not a shutdown
+
+    result = run_health_check(make_frame({"A": a, "B": b}, freq="MS"))
+
+    closed = check(result, "closed_periods_zero")
+    assert closed["count"] == 4 and closed["affected_series"] == ["A", "B"]
+
+
+def test_weekday_rule_needs_enough_weeks():
+    few = [0.0 if i % 7 == 5 else 10.0 + i for i in range(21)] + [None] * 19
+    result = run_health_check(make_frame({"A": few}))
+    assert check(result, "zero_values")["count"] == 3
+    assert check(result, "closed_periods_zero")["count"] == 0

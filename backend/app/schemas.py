@@ -16,6 +16,7 @@ CheckId = Literal[
     "irregular_spacing",
     "too_many_factors",
     "zero_values",
+    "closed_periods_zero",
 ]
 
 
@@ -75,6 +76,7 @@ class SeriesSummary(BaseModel):
     missing_count: int | None = None
     status: Literal["ready", "warning", "excluded"]
     issues: list[str] | None = None
+    attributes: dict[str, str] | None = None
 
 
 class DateRange(BaseModel):
@@ -91,6 +93,9 @@ class Dataset(BaseModel):
     series_count: int
     factor_columns: list[str]
     additive: bool
+    unit: str | None = None
+    hierarchy: list[str] = []
+    input_format: Literal["long", "wide"] = "long"
     date_range: DateRange | None = None
     series: list[SeriesSummary] | None = None
     health: HealthReport
