@@ -194,6 +194,31 @@ Two separate lenses per factor (`app/services/factors.py`):
   `predict` as separate univariate series (tested).
 - `precompute_demos` also writes `factors.json` for demos that have factor columns.
 
+## Accuracy (B11)
+
+```bash
+curl -X POST http://localhost:8000/jobs/accuracy -H "Content-Type: application/json"   -d '{"dataset_id": "<id>", "series_ids": ["A", "B"], "horizon": 14, "origins": 8}'
+```
+
+- `app/services/accuracy.py` (pure logic) and `accuracy_job.py` (wiring). Origins are spaced
+  one horizon apart and end at the last observed period, so `origins × horizon` periods at the
+  end of the history are backtested without overlap. Each origin sees only earlier data;
+  origins with fewer than 30 points of context are skipped (`origins` in the result is the
+  number actually used, for the longest series). If a series has no usable origin the job
+  fails with `history_too_short`.
+- Per series: `wape` = sum|actual − P50| / sum|actual| × 100, `bias_pct` = sum(P50 − actual) /
+  sum|actual| × 100 (+ = over-forecast), `coverage_p10_p90` (share 0-1), `quantile_coverage`
+  (share of actuals at or below each quantile: the calibration chart), and `backtest`
+  (dates, actual, P10/P50/P90) for the overlay. Missing actuals are `null` in the overlay and
+  skipped in the scores.
+- Naive baseline = seasonal naive (repeat the last season before each origin: 7 for daily,
+  52 weekly, 12 monthly, 4 quarterly, 24 hourly). `naive_wape` is scored on the periods where
+  it exists and `improvement_vs_naive_pct` compares the model on those same periods; both are
+  `null` when the history before the origins is shorter than one season.
+- `portfolio` pools all series, so WAPE and bias are weighted by volume; its range accuracy is
+  the volume-weighted mean of the series' coverage.
+- Uses the same clipped-at-0 forecasts as the forecast job.
+
 ## Demo data (B5)
 
 `make demo-data` builds the demo datasets into `data/processed/` from raw files in `data/raw/`.

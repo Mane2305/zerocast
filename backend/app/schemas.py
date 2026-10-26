@@ -103,7 +103,7 @@ class SeriesHistory(BaseModel):
     factors: dict[str, list[float | None]] | None = None
 
 
-JobType = Literal["forecast", "review", "factors"]
+JobType = Literal["forecast", "review", "factors", "accuracy"]
 JobStatus = Literal["queued", "running", "succeeded", "failed"]
 
 
@@ -140,6 +140,13 @@ class ReviewRequest(BaseModel):
     lookback_periods: int | None = Field(default=None, ge=1)
     step: int | None = Field(default=None, ge=1)
     top_n: int = Field(default=5, ge=1, le=50)
+
+
+class AccuracyRequest(BaseModel):
+    dataset_id: str
+    series_ids: list[str] = Field(min_length=1, max_length=20)
+    horizon: int = Field(ge=1, le=256)
+    origins: int = Field(default=8, ge=1, le=52)
 
 
 class AnnotationInput(BaseModel):
