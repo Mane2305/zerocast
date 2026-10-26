@@ -25,3 +25,10 @@ Short records of why we chose things. Add new entries at the bottom; never rewri
 | 19 | Retail demo uses UCI Online Retail II (CC BY 4.0) instead of Favorita | Favorita's Kaggle terms could not be checked; UCI licence is explicit |
 | 20 | Datasets carry `additive`; non-additive (index, price) horizons report the MEAN, not the total | A sum of index values is meaningless; `aggregation` makes the switch explicit |
 | 21 | Risk metrics use ratios of sums over the horizon (trust horizon on cumulative sums) | Mean of per-step ratios explodes on near-zero steps such as closed days |
+| 22 | Decision studio layout (sidebar workspace), no landing page | Reviewers must see a result in the first screen; less text, denser layout |
+| 23 | Business vocabulary from GLOSSARY.md; no ML jargon in UI | Planners must understand every label without a manual |
+| 24 | Position as the decision layer next to Birla AI Labs' own Forecasting App | Their app = model workspace + metrics; ours = plan, risk, accuracy evidence, exceptions |
+| 25 | New Accuracy page (WAPE, bias, range accuracy, naive baseline, calibration) | Planners judge forecasts by accuracy; their app shows metrics, we add calibration |
+| 26 | Flexible input: long or wide, hierarchy ID columns, optional price/unit, additive flag | Real business files are not 3 columns |
+| 27 | PDF/image tables only as beta with user confirmation | Extraction can silently corrupt numbers |
+| 28 | Hosting: Vercel + Neon + Modal; not Render/Railway for the model | Free Render/Railway RAM (≤512 MB) cannot load 1.1 GB weights |

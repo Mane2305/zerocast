@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ZeroCast API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Contract between the ZeroCast frontend and backend. Only the architect (via the repo owner)
     changes this file. Backend implements it exactly; frontend uses a mock server generated from it.
@@ -33,7 +33,7 @@ paths:
 
   /datasets:
     post:
-      summary: Upload a dataset in the universal long template (Parquet or CSV) and run the health check
+      summary: Upload a dataset (long or wide; Parquet, CSV or JSON records) and run the health check
       requestBody:
         required: true
         content:
@@ -42,13 +42,24 @@ paths:
               type: object
               required: [file]
               properties:
-                file: { type: string, format: binary, description: "Parquet or CSV, max 50 MB" }
+                file: { type: string, format: binary, description: "Parquet, CSV or JSON (array of records), max 50 MB. Excel is converted in the browser." }
                 name: { type: string }
                 holiday_country: { type: string, description: "ISO country code for the holiday calendar, e.g. IN" }
                 additive:
                   type: boolean
                   default: true
                   description: "true if values add up over time (units, tonnes, revenue); false for indices, prices, rates"
+                format:
+                  type: string
+                  enum: [auto, long, wide]
+                  default: auto
+                  description: "long = one row per item per date; wide = date column plus one column per item"
+                date_column: { type: string, description: "Default: date" }
+                target_column: { type: string, description: "Long format only. Default: target" }
+                id_columns:
+                  type: string
+                  description: 'Long format only. JSON array of ID columns, e.g. ["store","product"]; series_id is built as "store|product". Default: ["series_id"]'
+                unit: { type: string, description: 'Display only, e.g. "units", "tonnes", "index points", "INR"' }
       responses:
         "201":
           description: Created
@@ -168,6 +179,21 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/JobRef" }
 
+  /jobs/accuracy:
+    post:
+      summary: Accuracy — backtest the last few forecast horizons and score them against actuals
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AccuracyRequest" }
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+
   /jobs/{job_id}:
     get:
       summary: Job status, progress and result. Result shape depends on job_type.
@@ -219,7 +245,7 @@ components:
       required: [name, parameters, quantile_levels, max_context, block_size, license]
       properties:
         name: { type: string, examples: ["birlaailabs/yug"] }
-        revision: { type: string, description: "Pinned commit or release" }
+        revision: { type: string, description: "Pinned yug code commit (or release version)" }
         weights_revision: { type: ["string", "null"], description: "Hugging Face revision of the weights, if pinned" }
         parameters: { type: integer, examples: [271845260] }
         quantile_levels: { type: array, items: { type: number } }
@@ -245,6 +271,9 @@ components:
       required: [dataset_id, name, frequency, series_count, factor_columns, health, additive]
       properties:
         additive: { type: boolean, description: "Whether horizon totals are meaningful; see total_distribution.aggregation" }
+        unit: { type: ["string", "null"], description: "Display only" }
+        hierarchy: { type: array, items: { type: string }, description: 'ID columns series_id is built from, e.g. ["store","product"]; empty if none' }
+        input_format: { type: string, enum: [long, wide], description: "Detected (or given) format of the uploaded file" }
         dataset_id: { type: string }
         name: { type: string }
         created_at: { type: string, format: date-time }
@@ -273,6 +302,10 @@ components:
         missing_count: { type: integer }
         status: { type: string, enum: [ready, warning, excluded] }
         issues: { type: array, items: { type: string } }
+        attributes:
+          type: object
+          additionalProperties: { type: string }
+          description: 'Hierarchy values for this item, e.g. {"store": "S1", "product": "BAGS"}'
 
     HealthReport:
       type: object
@@ -289,7 +322,8 @@ components:
       properties:
         id:
           type: string
-          enum: [missing_dates, duplicates, negative_values, non_finite, too_short, constant_series, irregular_spacing, too_many_factors, zero_values]
+          enum: [missing_dates, duplicates, negative_values, non_finite, too_short, constant_series, irregular_spacing, too_many_factors, zero_values, closed_periods_zero]
+          description: "zero_values: all periods recorded as 0 (info). closed_periods_zero: the subset that looks like closures, e.g. the same weekday every week or a shutdown across all items (info)."
         label: { type: string, examples: ["Missing dates"] }
         severity: { type: string, enum: [info, warning, error] }
         count: { type: integer }
@@ -318,6 +352,7 @@ components:
         series_ids: { type: array, items: { type: string }, minItems: 1, maxItems: 100 }
         horizon: { type: integer, minimum: 1, maximum: 256 }
         seed: { type: integer, default: 0 }
+        return_paths: { type: integer, minimum: 0, maximum: 50, default: 0, description: "Number of sample paths to return per series (possible-futures chart)" }
 
     ReviewRequest:
       type: object
@@ -339,13 +374,26 @@ components:
         horizon: { type: integer, minimum: 1, maximum: 64, default: 28 }
         max_lag: { type: integer, default: 3 }
 
+    AccuracyRequest:
+      type: object
+      required: [dataset_id, series_ids, horizon]
+      properties:
+        dataset_id: { type: string }
+        series_ids: { type: array, items: { type: string }, minItems: 1, maxItems: 20 }
+        horizon: { type: integer, minimum: 1, maximum: 256 }
+        origins: { type: integer, minimum: 1, maximum: 52, default: 8, description: "Number of backtest origins, spaced one horizon apart and ending at the last observed period" }
+
     JobRef:
       type: object
       required: [job_id, job_type, status]
       properties:
         job_id: { type: string }
-        job_type: { type: string, enum: [forecast, review, factors] }
+        job_type: { $ref: "#/components/schemas/JobType" }
         status: { $ref: "#/components/schemas/JobStatus" }
+
+    JobType:
+      type: string
+      enum: [forecast, review, factors, accuracy]
 
     JobStatus:
       type: string
@@ -356,7 +404,7 @@ components:
       required: [job_id, job_type, status, progress]
       properties:
         job_id: { type: string }
-        job_type: { type: string, enum: [forecast, review, factors] }
+        job_type: { $ref: "#/components/schemas/JobType" }
         status: { $ref: "#/components/schemas/JobStatus" }
         progress: { type: number, minimum: 0, maximum: 100 }
         message: { type: string, examples: ["Forecasting series 3 of 10"] }
@@ -369,6 +417,7 @@ components:
             - $ref: "#/components/schemas/ForecastResult"
             - $ref: "#/components/schemas/ReviewResult"
             - $ref: "#/components/schemas/FactorResult"
+            - $ref: "#/components/schemas/AccuracyResult"
             - type: "null"
 
     ForecastResult:
@@ -382,7 +431,7 @@ components:
 
     SeriesForecast:
       type: object
-      required: [series_id, dates, quantiles, total_distribution, risk, latency_ms]
+      required: [series_id, dates, quantiles, total_distribution, step_exceedance_grid, risk, latency_ms]
       properties:
         series_id: { type: string }
         dates: { type: array, items: { type: string, format: date-time }, description: "Future dates, length = horizon" }
@@ -401,9 +450,14 @@ components:
           properties:
             percentiles: { type: array, items: { type: number }, minItems: 101, maxItems: 101 }
             aggregation: { type: string, enum: [sum, mean] }
+        sample_paths:
+          type: ["array", "null"]
+          description: "return_paths sample paths, shape [n_paths][horizon]; null when return_paths = 0"
+          items: { type: array, items: { type: number } }
         step_exceedance_grid:
           type: object
-          description: "Optional: per-step percentiles 1..99 from sample paths, for capacity-risk lookups. Shape [99][horizon]."
+          description: "Per-step percentiles 1..99 from sample paths, for capacity-risk lookups. Shape [99][horizon]."
+          required: [percentiles]
           properties:
             percentiles:
               type: array
@@ -437,6 +491,56 @@ components:
               actual_total: { type: number }
               aggregation: { type: string, enum: [sum, mean], description: "mean for non-additive datasets: expected_total/actual_total are then period means" }
               band_coverage: { type: number, description: "Share of replayed periods inside P10-P90 (expected ~0.8)" }
+
+    AccuracyMetrics:
+      type: object
+      description: "Scores over all backtested periods. Percentages are 0-100; coverage values are shares 0-1."
+      required: [wape, bias_pct, coverage_p10_p90]
+      properties:
+        wape: { type: number, description: "sum |actual - P50| / sum |actual| * 100" }
+        bias_pct: { type: number, description: "sum (P50 - actual) / sum |actual| * 100; + = over-forecast" }
+        coverage_p10_p90: { type: number, description: "Share of actuals inside P10-P90 (target ~0.8)" }
+        naive_wape: { type: ["number", "null"], description: "WAPE of the seasonal naive forecast on the same periods; null if history is shorter than one season" }
+        improvement_vs_naive_pct: { type: ["number", "null"], description: "(naive_wape - wape) / naive_wape * 100; + = model better" }
+
+    AccuracyResult:
+      type: object
+      required: [horizon, origins, series, portfolio]
+      properties:
+        horizon: { type: integer }
+        origins: { type: integer, description: "Origins actually used (fewer than requested if history is short)" }
+        series:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/AccuracyMetrics"
+              - type: object
+                required: [series_id, quantile_coverage, backtest]
+                properties:
+                  series_id: { type: string }
+                  quantile_coverage:
+                    type: array
+                    description: "Calibration: share of actuals at or below each quantile (perfect = level)"
+                    items:
+                      type: object
+                      required: [level, observed]
+                      properties:
+                        level: { type: number }
+                        observed: { type: number }
+                  backtest:
+                    type: object
+                    description: "Backtested periods in date order, for the forecast-vs-actual overlay"
+                    required: [dates, actual, p10, p50, p90]
+                    properties:
+                      dates: { type: array, items: { type: string, format: date-time } }
+                      actual: { type: array, items: { type: ["number", "null"] } }
+                      p10: { type: array, items: { type: number } }
+                      p50: { type: array, items: { type: number } }
+                      p90: { type: array, items: { type: number } }
+        portfolio:
+          description: "All series pooled, i.e. weighted by volume (sum of |actual|)"
+          allOf:
+            - $ref: "#/components/schemas/AccuracyMetrics"
 
     SurpriseEvent:
       type: object
