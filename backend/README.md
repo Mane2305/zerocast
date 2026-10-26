@@ -108,6 +108,9 @@ curl http://localhost:8000/jobs/<job_id>     # poll until status is succeeded or
   non-additive dataset, from sample paths; `aggregation` says which),
   `step_exceedance_grid` (per-step percentiles 1..99), `last_year` and `risk`. Numbers are
   rounded to 6 significant digits.
+- `return_paths` (0-50, default 0) adds `sample_paths` (shape [n][horizon]) for the
+  "possible futures" chart. It is capped at the engine's sample count (`ZC_NUM_SAMPLES`), and
+  the paths are clipped at 0 the same way as the quantiles.
 - If a series' history has no negative values, quantiles and sample paths are clipped at 0
   (sales and production cannot go below zero). Clipping is monotone, so quantiles and totals
   stay consistent. Forecast and year-in-review results both use this; the factor check's

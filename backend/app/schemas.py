@@ -112,6 +112,7 @@ class ForecastRequest(BaseModel):
     series_ids: list[str] = Field(min_length=1, max_length=100)
     horizon: int = Field(ge=1, le=256)
     seed: int = 0
+    return_paths: int = Field(default=0, ge=0, le=50)
 
 
 class JobRef(BaseModel):

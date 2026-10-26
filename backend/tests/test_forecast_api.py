@@ -73,6 +73,27 @@ def test_forecast_job_matches_contract(model_client):
         assert series["dates"][0] == "2024-05-15T00:00:00"  # day after the last history date
         quantiles = np.array(series["quantiles"])
         assert np.all(np.diff(quantiles, axis=0) >= 0)
+        assert series.get("sample_paths") is None  # return_paths defaults to 0
+
+
+def test_return_paths_returns_sample_paths(model_client):
+    dataset_id = upload(model_client)
+    body = {"dataset_id": dataset_id, "series_ids": ["A"], "horizon": 12, "return_paths": 5}
+
+    series = run_job(model_client, body)["result"]["series"][0]
+
+    assert_matches_schema("SeriesForecast", series)
+    paths = np.array(series["sample_paths"])
+    assert paths.shape == (5, 12) and np.all(np.isfinite(paths))
+
+
+def test_return_paths_is_capped_at_the_sample_count(model_client):
+    dataset_id = upload(model_client)
+    body = {"dataset_id": dataset_id, "series_ids": ["A"], "horizon": 6, "return_paths": 50}
+
+    series = run_job(model_client, body)["result"]["series"][0]
+
+    assert np.array(series["sample_paths"]).shape == (TINY_SAMPLES, 6)
 
 
 def test_total_distribution_comes_from_paths(model_client):
@@ -131,6 +152,8 @@ def test_model_disabled_fails_the_job(client):
         {"dataset_id": "x", "series_ids": ["A"], "horizon": 257},
         {"dataset_id": "x", "series_ids": [f"s{i}" for i in range(101)], "horizon": 5},
         {"dataset_id": "x", "series_ids": ["A"]},
+        {"dataset_id": "x", "series_ids": ["A"], "horizon": 5, "return_paths": 51},
+        {"dataset_id": "x", "series_ids": ["A"], "horizon": 5, "return_paths": -1},
     ],
 )
 def test_invalid_request_is_422(client, body):

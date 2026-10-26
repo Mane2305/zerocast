@@ -84,7 +84,9 @@ def forecast_series(
     horizon: int,
     seed: int,
     additive: bool = True,
+    return_paths: int = 0,
 ) -> dict[str, Any]:
+    """`return_paths` > 0 also returns that many sample paths (capped at the sample count)."""
     aggregation = "sum" if additive else "mean"
     quantiles, paths, latency_ms = forecast_paths(
         engine, history.to_numpy(), horizon, frequency, seed
@@ -100,6 +102,7 @@ def forecast_series(
             "aggregation": aggregation,
         },
         "step_exceedance_grid": {"percentiles": round_sig(step_exceedance_grid(paths))},
+        "sample_paths": round_sig(paths[:return_paths]) if return_paths > 0 else None,
         "risk": insights.risk_metrics(quantiles, levels),
         "latency_ms": round(latency_ms, 2),
     }
@@ -119,7 +122,13 @@ def make_forecast_handler(
             progress(100.0 * i / n, f"Forecasting series {i + 1} of {n}")
             history = series_values(frame, sid)
             result = forecast_series(
-                yug, history, frequency, params["horizon"], params["seed"], is_additive(record)
+                yug,
+                history,
+                frequency,
+                params["horizon"],
+                params["seed"],
+                is_additive(record),
+                params.get("return_paths", 0),
             )
             results.append({"series_id": sid, **result})
         return {"quantile_levels": yug.info()["quantile_levels"], "series": results}
