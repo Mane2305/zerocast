@@ -15,7 +15,8 @@ Fast cold starts (B15):
   (`snap=False`), since a snapshot cannot carry running threads.
 - Weights load with HF_HUB_OFFLINE=1 from the Volume: no Hugging Face network checks.
 - ZC_TORCH_THREADS=4: the container sees the host's CPU count, and too many threads is slower.
-- Keep-warm schedule: one container on weekdays 10:00-18:00 IST, scale to zero otherwise.
+- Keep-warm schedule (opt-in): deploy with ZC_KEEP_WARM=1 to keep one container up on weekdays
+  10:00-18:00 IST (~$1/day). Off by default, so the container runs only while it is used.
 """
 
 import os
@@ -76,8 +77,9 @@ def download_weights() -> None:
     # One container only: jobs run on an in-process worker and the Yug pipeline must never
     # be called from two places at once (CLAUDE.md rule 6, DECISIONS #10).
     max_containers=1,
-    # Maximum allowed (20 min): stay up between polls so a running job is not cut off.
-    scaledown_window=1200,
+    # Idle minutes before shutdown (billed). Clients poll running jobs every few seconds,
+    # which keeps the container up, so 5 min is enough and keeps the bill low.
+    scaledown_window=int(os.environ.get("ZC_SCALEDOWN_SECONDS", "300")),
     timeout=3600,
     enable_memory_snapshot=True,
 )
@@ -126,13 +128,14 @@ def _set_min_containers(count: int) -> None:
     modal.Cls.from_name(APP_NAME, "Api")().update_autoscaler(min_containers=count)
 
 
-@app.function(schedule=modal.Cron("0 10 * * 1-5", timezone=TIMEZONE))
-def keep_warm() -> None:
-    """Working hours: one container always up, so nobody waits for a cold start
-    (about $0.13/h for 2 cores + 4 GiB: ~$22/month for 8 h on weekdays, inside the $30 credit)."""
-    _set_min_containers(1)
+if os.environ.get("ZC_KEEP_WARM") == "1":  # read at deploy time, see the module docstring
 
+    @app.function(schedule=modal.Cron("0 10 * * 1-5", timezone=TIMEZONE))
+    def keep_warm() -> None:
+        """Working hours: one container always up, so nobody waits for a cold start
+        (about $0.13/h for 2 cores + 4 GiB: ~$22/month for 8 h on weekdays)."""
+        _set_min_containers(1)
 
-@app.function(schedule=modal.Cron("0 18 * * 1-5", timezone=TIMEZONE))
-def allow_scale_to_zero() -> None:
-    _set_min_containers(0)
+    @app.function(schedule=modal.Cron("0 18 * * 1-5", timezone=TIMEZONE))
+    def allow_scale_to_zero() -> None:
+        _set_min_containers(0)

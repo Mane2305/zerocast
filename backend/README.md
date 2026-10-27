@@ -311,10 +311,11 @@ Measured locally (retail file, 5 items, 2 years daily), before → after:
   6.1 s → 2.8 s locally). Use it once the weights are cached.
 - **Modal** (`modal_app.py`): an `Api` class with a **memory snapshot**. Imports, weights and
   the warm-up forecast run once in `@modal.enter(snap=True)`; later cold starts restore that
-  memory. Threads, DB connection and the FastAPI app start after the restore. Plus
-  `scaledown_window=1200` (max) and a keep-warm schedule: one container on weekdays
-  10:00-18:00 IST (`keep_warm` / `allow_scale_to_zero` cron functions, ~$22/month), scale to
-  zero otherwise. Change the hours in `modal_app.py`.
+  memory. Threads, DB connection and the FastAPI app start after the restore. The container
+  stops after 5 idle minutes (`ZC_SCALEDOWN_SECONDS` at deploy time, default 300). Optional
+  keep-warm schedule: deploy with `ZC_KEEP_WARM=1` for one container on weekdays
+  10:00-18:00 IST (`keep_warm` / `allow_scale_to_zero` cron functions, ~$1/day, ~$22/month).
+  Off by default. Change the hours in `modal_app.py`.
 - Measure a deployment: `uv run python -m scripts.measure_latency --url <endpoint>`.
 
 Not done: batching several items into one model call (would need care to keep the sample
@@ -335,7 +336,7 @@ Database migrations (Alembic, `backend/migrations/`):
 
 Modal (`modal_app.py`): FastAPI as a Modal ASGI endpoint, Python 3.11 image built with
 `uv sync --frozen --no-dev` (so yug stays pinned to the uv.lock commit), CPU 2 / 4096 MB,
-`min_containers=0`, **`max_containers=1`** (single model worker), 15 min scale-down window,
+`min_containers=0`, **`max_containers=1`** (single model worker), 5 min scale-down window,
 1 h timeout. Volumes: `zerocast-weights` (HF cache, `HF_HOME=/data/hf`) and
 `zerocast-uploads` (Parquet files, `ZC_STORAGE_DIR=/data/uploads`). Neon holds metadata only.
 
@@ -354,6 +355,11 @@ One-time setup (owner):
 4. Check: `curl https://<endpoint>/health` (first call cold-starts: ~20-40 s plus model
    load; `model_loaded` turns true when ready).
 5. **Vercel**: set `NEXT_PUBLIC_API_URL` = the endpoint → redeploy.
+
+Cost (Modal Starter: $1 credit at sign-up, $30/month once a card is added): the container
+costs ~$0.13/h while up (2 cores + 4 GiB) and $0 when scaled to zero, so a 15 min demo is
+~$0.04. `uv run --group deploy modal app stop zerocast` stops it immediately (redeploy to
+start again). Do not set `ZC_KEEP_WARM=1` on the $1 credit.
 
 Limits: jobs run in-process in the single container. Polling keeps it alive; if a job runs
 with no requests for longer than the scale-down window it can be cut off and is reported as
