@@ -98,6 +98,27 @@ export class FileProcessor {
     await this.db.instantiate("/vendor/duckdb/duckdb-mvp.wasm");
     if (this.closed) throw new Error("Processing cancelled.");
     this.connection = await this.db.connect();
+    try {
+      const response = await fetch("/vendor/duckdb/extensions/manifest.json");
+      if (response.ok) {
+        const manifest: unknown = await response.json();
+        if (
+          manifest &&
+          typeof manifest === "object" &&
+          "version" in manifest &&
+          manifest.version === "1.5.4" &&
+          "platform" in manifest &&
+          manifest.platform === "wasm_mvp" &&
+          "parquetBundled" in manifest &&
+          manifest.parquetBundled === true
+        )
+          await this.query(
+            `SET custom_extension_repository='${window.location.origin}/vendor/duckdb/extensions'`,
+          );
+      }
+    } catch {
+      // Development without network access can still use DuckDB's normal CDN fallback.
+    }
     await this.query("SET memory_limit='768MB'");
     await this.query("SET preserve_insertion_order=false");
     status("Checking file structure and counting rows…");
@@ -278,7 +299,9 @@ export function processingMessage(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   if (/memory|allocation|out of bounds/i.test(message))
     return "Your browser ran out of working memory. Close other tabs, try a smaller file, or export just the worksheet you need as CSV.";
-  if (/failed to fetch|network|worker|wasm|instantiate/i.test(message))
+  if (/failed to fetch|network/i.test(message))
+    return "The browser could not reach DuckDB’s Parquet support. Check the connection and try again. Your file has not been uploaded.";
+  if (/worker|wasm|instantiate/i.test(message))
     return "The local file processor could not start. Refresh the app and try again. Your file has not been uploaded.";
   if (
     /CSV Error|Invalid Input Error|Parser Error|Invalid UTF|sniff/i.test(

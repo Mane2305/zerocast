@@ -201,6 +201,10 @@
   }
   .driver-pair,
   .upload-v2-fields {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .driver-pair > section,
+  .upload-v2-fields > * {
+    min-width: 0;
   }
 }

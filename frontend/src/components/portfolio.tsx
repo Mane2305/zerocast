@@ -2,7 +2,7 @@
 import { InfoTip } from "./info-tip";
 import { formatPeriod } from "@/lib/dates";
 import { findDemo } from "@/lib/demos";
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { PortfolioBubbles } from "./portfolio-bubbles";
 import { validAccuracy } from "@/lib/accuracy";
 import { getAccuracyJob } from "@/lib/api/accuracy";
@@ -21,6 +21,8 @@ import {
   trustText,
   type RiskSort,
 } from "@/lib/portfolio";
+
+const PORTFOLIO_PAGE_SIZE = 50;
 
 async function loadDemo(id: string, signal: AbortSignal) {
   const read = async (file: string) => {
@@ -188,18 +190,25 @@ function PortfolioTable({
   const [sort, setSort] = useState<RiskSort>("uncertainty");
   const [descending, setDescending] = useState(true);
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
+  const [page, setPage] = useState(0);
   const [direction, setDirection] = useState("all");
   const [label, setLabel] = useState("all");
   const [groupBy, setGroupBy] = useState("");
   const [groupValue, setGroupValue] = useState("");
-  const attributes = new Map(
-    dataset.series?.map((s) => [s.series_id, s.attributes]),
+  const attributes = useMemo(
+    () => new Map(dataset.series?.map((s) => [s.series_id, s.attributes])),
+    [dataset.series],
   );
-  const groups = [
-    ...new Set(
-      dataset.series?.map((s) => s.attributes?.[groupBy] || "Not supplied"),
-    ),
-  ].sort();
+  const groups = useMemo(
+    () =>
+      [
+        ...new Set(
+          dataset.series?.map((s) => s.attributes?.[groupBy] || "Not supplied"),
+        ),
+      ].sort(),
+    [dataset.series, groupBy],
+  );
   const preferences = useDatasetPreferences(id);
   const accuracy = useQuery({
     queryKey: ["portfolio-accuracy", source, id, preferences.accuracyJob],
@@ -227,29 +236,58 @@ function PortfolioTable({
     v.toLocaleString(dataset.holiday_country === "IN" ? "en-IN" : undefined, {
       maximumFractionDigits: 1,
     });
-  const rows = sortRisk(
-    forecast.series.filter(
-      (s) =>
-        s.series_id.toLocaleLowerCase().includes(search.toLocaleLowerCase()) &&
-        (!groupBy ||
-          !groupValue ||
-          (attributes.get(s.series_id)?.[groupBy] || "Not supplied") ===
-            groupValue) &&
-        (direction === "all" || direction === s.risk.risk_direction) &&
-        (label === "all" ||
-          (label === "unreported"
-            ? s.risk.uncertainty_label === undefined
-            : label === s.risk.uncertainty_label)),
-    ),
-    sort,
-    descending,
+  const rows = useMemo(
+    () => {
+      const filtered = forecast.series.filter(
+        (s) =>
+          s.series_id
+            .toLocaleLowerCase()
+            .includes(deferredSearch.toLocaleLowerCase()) &&
+          (!groupBy ||
+            !groupValue ||
+            (attributes.get(s.series_id)?.[groupBy] || "Not supplied") ===
+              groupValue) &&
+          (direction === "all" || direction === s.risk.risk_direction) &&
+          (label === "all" ||
+            (label === "unreported"
+              ? s.risk.uncertainty_label === undefined
+              : label === s.risk.uncertainty_label)),
+      );
+      const ordered = sortRisk(filtered, sort, descending);
+      if (groupBy)
+        ordered.sort((a, b) =>
+          (
+            attributes.get(a.series_id)?.[groupBy] || "Not supplied"
+          ).localeCompare(
+            attributes.get(b.series_id)?.[groupBy] || "Not supplied",
+          ),
+        );
+      return ordered;
+    },
+    [
+      forecast.series,
+      deferredSearch,
+      groupBy,
+      groupValue,
+      attributes,
+      direction,
+      label,
+      sort,
+      descending,
+    ],
   );
-  if (groupBy)
-    rows.sort((a, b) =>
-      (attributes.get(a.series_id)?.[groupBy] || "Not supplied").localeCompare(
-        attributes.get(b.series_id)?.[groupBy] || "Not supplied",
+  const pageCount = Math.max(1, Math.ceil(rows.length / PORTFOLIO_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const firstRow = currentPage * PORTFOLIO_PAGE_SIZE;
+  const visibleRows = rows.slice(firstRow, firstRow + PORTFOLIO_PAGE_SIZE);
+  const lastRow = Math.min(firstRow + PORTFOLIO_PAGE_SIZE, rows.length);
+  const accuracyBySeries = useMemo(
+    () =>
+      new Map(
+        accuracy.data?.series.map((item) => [item.series_id, item.wape]) ?? [],
       ),
-    );
+    [accuracy.data],
+  );
   const url = (seriesId: string) =>
     source === "demo"
       ? `/forecast/${encodeURIComponent(id)}?${new URLSearchParams({ series: seriesId })}`
@@ -331,6 +369,7 @@ function PortfolioTable({
                 onChange={(e) => {
                   setGroupBy(e.target.value);
                   setGroupValue("");
+                  setPage(0);
                 }}
               >
                 <option value="">No grouping</option>
@@ -345,7 +384,10 @@ function PortfolioTable({
                 <select
                   aria-label="Portfolio group"
                   value={groupValue}
-                  onChange={(e) => setGroupValue(e.target.value)}
+                  onChange={(e) => {
+                    setGroupValue(e.target.value);
+                    setPage(0);
+                  }}
                 >
                   <option value="">All groups</option>
                   {groups.map((name) => (
@@ -361,7 +403,10 @@ function PortfolioTable({
           <input
             aria-label="Search items"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
             placeholder="Item ID"
           />
         </label>
@@ -370,7 +415,10 @@ function PortfolioTable({
           <select
             aria-label="Variability label"
             value={label}
-            onChange={(e) => setLabel(e.target.value)}
+            onChange={(e) => {
+              setLabel(e.target.value);
+              setPage(0);
+            }}
           >
             <option value="all">All labels</option>
             <option value="predictable">Predictable</option>
@@ -384,7 +432,10 @@ function PortfolioTable({
           <select
             aria-label="Demand risk"
             value={direction}
-            onChange={(e) => setDirection(e.target.value)}
+            onChange={(e) => {
+              setDirection(e.target.value);
+              setPage(0);
+            }}
           >
             <option value="all">All directions</option>
             <option value="upside">Upside</option>
@@ -398,6 +449,7 @@ function PortfolioTable({
             setSearch("");
             setDirection("all");
             setLabel("all");
+            setPage(0);
           }}
         >
           Clear filters
@@ -444,7 +496,12 @@ function PortfolioTable({
                       : "none"
                   }
                 >
-                  <button onClick={() => changeSort(key)}>
+                  <button
+                    onClick={() => {
+                      changeSort(key);
+                      setPage(0);
+                    }}
+                  >
                     {title} {sort === key ? (descending ? "↓" : "↑") : "↕"}
                   </button>
                   <InfoTip label={`${title} definition`}>
@@ -471,7 +528,7 @@ function PortfolioTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((s) => (
+            {visibleRows.map((s) => (
               <tr
                 key={s.series_id}
                 onClick={(e) => {
@@ -532,10 +589,8 @@ function PortfolioTable({
                 <td>{quantity.format(s.total_distribution.percentiles[50])}</td>
                 <td>
                   {accuracy.data?.horizon === s.dates.length &&
-                  accuracy.data.series.find(
-                    (item) => item.series_id === s.series_id,
-                  )
-                    ? `${number(accuracy.data.series.find((item) => item.series_id === s.series_id)!.wape)}%`
+                  accuracyBySeries.has(s.series_id)
+                    ? `${number(accuracyBySeries.get(s.series_id)!)}%`
                     : "Unavailable"}
                 </td>
               </tr>
@@ -543,6 +598,33 @@ function PortfolioTable({
           </tbody>
         </table>
       </div>
+      {rows.length > PORTFOLIO_PAGE_SIZE && (
+        <nav className="health-pagination" aria-label="Portfolio table pages">
+          <span>
+            Items {number(firstRow + 1)}–{number(lastRow)} of{" "}
+            {number(rows.length)}
+          </span>
+          <div>
+            <Button
+              variant="outline"
+              disabled={currentPage === 0}
+              onClick={() => setPage(currentPage - 1)}
+            >
+              Previous
+            </Button>
+            <span aria-live="polite">
+              Page {number(currentPage + 1)} of {number(pageCount)}
+            </span>
+            <Button
+              variant="outline"
+              disabled={currentPage >= pageCount - 1}
+              onClick={() => setPage(currentPage + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </nav>
+      )}
       {!rows.length && (
         <div className="health-table-empty">
           <h2>

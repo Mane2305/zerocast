@@ -107,6 +107,25 @@
 .studio-content {
   min-width: 0;
 }
+.offline-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 24px;
+  color: var(--foreground);
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.offline-banner > span {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #b34031;
+}
 .studio-topbar {
   min-height: 64px;
   display: flex;

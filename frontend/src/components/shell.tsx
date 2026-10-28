@@ -31,6 +31,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
   const searchRef = useRef<HTMLInputElement>(null);
   const segments = pathname.split("/").filter(Boolean);
   const id =
@@ -77,6 +78,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
         : false,
   });
   useEffect(() => {
+    const updateOnline = () => setIsOnline(navigator.onLine);
+    updateOnline();
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
     const key = (event: KeyboardEvent) => {
       if (
         event.key === "/" &&
@@ -92,7 +97,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
       if (event.key === "Escape") setMobileOpen(false);
     };
     window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
+    return () => {
+      window.removeEventListener("keydown", key);
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
   }, []);
   const datasetPath = (module: string) =>
     uploaded
@@ -305,6 +314,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 ? "UCI Online Retail II"
                 : "India cement production index"}{" "}
             · <Link href="/data">Switch dataset</Link>
+          </div>
+        )}
+        {!isOnline && (
+          <div className="offline-banner" role="status" aria-live="polite">
+            <span aria-hidden="true" />
+            You’re offline. Saved demo pages remain available; uploads and live
+            reports will reconnect when your connection returns.
           </div>
         )}
         <main id="main">{children}</main>

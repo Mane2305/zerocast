@@ -4,6 +4,8 @@ import type { EChartsOption } from "echarts";
 import type { SeriesForecast } from "@/lib/forecast";
 import { InfoTip } from "./info-tip";
 import { valueFormatter } from "@/lib/numbers";
+import { sortRisk } from "@/lib/portfolio";
+const MAX_PORTFOLIO_BUBBLES = 200;
 const Chart = dynamic(() => import("./studio-chart"), {
   ssr: false,
   loading: () => <p role="status">Loading portfolio chart…</p>,
@@ -21,9 +23,14 @@ export function PortfolioBubbles({
   unit?: string;
   country?: string | null;
 }) {
+  const plottedRows =
+    rows.length > MAX_PORTFOLIO_BUBBLES
+      ? sortRisk(rows, "uncertainty", true).slice(0, MAX_PORTFOLIO_BUBBLES)
+      : rows;
+  const rowsById = new Map(plottedRows.map((row) => [row.series_id, row]));
   const max = Math.max(
     1,
-    ...rows.map((s) => Math.abs(s.total_distribution.percentiles[50])),
+    ...plottedRows.map((s) => Math.abs(s.total_distribution.percentiles[50])),
   );
   const option: EChartsOption = {
     grid: { left: 65, right: 25, top: 45, bottom: 65 },
@@ -33,7 +40,7 @@ export function PortfolioBubbles({
       renderMode: "richText",
       formatter: (params) => {
         const point = Array.isArray(params) ? params[0] : params;
-        const item = rows.find((row) => row.series_id === point.name);
+        const item = rowsById.get(String(point.name));
         if (!item) return "";
         const format = valueFormatter({ unit, country });
         const metric = new Intl.NumberFormat(undefined, {
@@ -56,7 +63,7 @@ export function PortfolioBubbles({
       name: risk,
       type: "scatter",
       itemStyle: { color: ["#247955", "#b24b47", "#7a8394"][i], opacity: 0.75 },
-      data: rows
+      data: plottedRows
         .filter((s) => s.risk.risk_direction === risk)
         .map((s) => ({
           name: s.series_id,
@@ -86,11 +93,20 @@ export function PortfolioBubbles({
         </InfoTip>
       </h2>
       {rows.length ? (
-        <Chart
-          option={option}
-          label="Portfolio bubble chart"
-          onSelect={onSelect}
-        />
+        <>
+          {rows.length > MAX_PORTFOLIO_BUBBLES && (
+            <p className="health-note" role="status">
+              Showing the {MAX_PORTFOLIO_BUBBLES} most variable items on this
+              chart. The table and export include all {rows.length} matching
+              items.
+            </p>
+          )}
+          <Chart
+            option={option}
+            label="Portfolio bubble chart"
+            onSelect={onSelect}
+          />
+        </>
       ) : (
         <p>No items match this view.</p>
       )}

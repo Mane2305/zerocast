@@ -7,12 +7,26 @@ export function Providers({ children }: { children: React.ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { retry: false, refetchOnWindowFocus: false },
+          queries: {
+            retry: (failureCount, error) => {
+              if (failureCount >= 6) return false;
+              const message = error instanceof Error ? error.message : "";
+              return (
+                error instanceof TypeError ||
+                /backend unreachable|could not reach the api|temporarily unavailable|cold start|http 5\d\d|server error/i.test(
+                  message,
+                )
+              );
+            },
+            retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: true,
+          },
         },
       }),
   );
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     </ThemeProvider>
   );

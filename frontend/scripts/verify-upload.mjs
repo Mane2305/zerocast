@@ -83,7 +83,7 @@ const check = async (path) => {
     .getByRole("button", { name: "Run file check", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "2. Confirm your columns" }),
+    page.getByRole("heading", { name: "Confirm your columns" }),
   ).toBeVisible();
 };
 const convert = async () => {
@@ -91,7 +91,7 @@ const convert = async () => {
     .getByRole("button", { name: "Run conversion", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "3. Review & upload" }),
+    page.getByRole("heading", { name: "Review & upload" }),
   ).toBeVisible();
 };
 try {
@@ -109,20 +109,23 @@ try {
   ).toBeVisible();
   await shot("checking");
   await expect(
-    page.getByRole("heading", { name: "2. Confirm your columns" }),
+    page.getByRole("heading", { name: "Confirm your columns" }),
   ).toBeVisible();
   await expect(page.getByLabel("Date column", { exact: true })).toHaveValue(
     "date",
   );
   await expect(
-    page.getByLabel("Series ID column", { exact: true }),
+    page.getByLabel("Item ID column", { exact: true }),
   ).toHaveValue("series_id");
-  await page.getByRole("checkbox", { name: "promo", exact: true }).check();
+  await page
+    .getByRole("group", { name: "driver columns" })
+    .getByRole("checkbox", { name: "promo", exact: true })
+    .check();
   await shot("mapping-desktop");
   await convert();
   const review = page
     .locator("section")
-    .filter({ has: page.getByRole("heading", { name: "3. Review & upload" }) });
+    .filter({ has: page.getByRole("heading", { name: "Review & upload" }) });
   await expect(review.locator("tbody tr").first()).toContainText("001");
   await expect(review.locator("tbody tr").first()).toContainText("blank");
   await expect(review.locator("tbody tr").first()).toContainText("2026-01-01");
@@ -171,9 +174,12 @@ try {
     );
     await shot("duplicate-error");
     await page
-      .getByLabel("Rows sharing a period and series")
+      .getByLabel("Rows sharing a period and item")
       .selectOption("sum");
-    await page.getByRole("checkbox", { name: "promo", exact: true }).check();
+    await page
+      .getByRole("group", { name: "driver columns" })
+      .getByRole("checkbox", { name: "promo", exact: true })
+      .check();
     await convert();
     await expect(review.locator("tbody tr").first()).toContainText("blank");
     await expect(
@@ -228,7 +234,7 @@ try {
     await writeFile("test-fixtures/hourly.csv", "date,series_id,target\n" + dates.flatMap(d => [`${d}T00:00:00.123,001,1`, `${d}T12:00:00,001,2`]).join("\n"));
     await check("test-fixtures/hourly.csv");
     await page.getByRole("combobox", {name: "Time period", exact: true}).selectOption("day");
-    await page.getByLabel("Rows sharing a period and series").selectOption("sum");
+    await page.getByLabel("Rows sharing a period and item").selectOption("sum");
     await convert();
     await expect(review.locator("tbody tr").first().locator("td").nth(2)).toHaveText("3");
     await check("test-fixtures/workbook.xlsx");
@@ -242,7 +248,7 @@ try {
     ).toBeDisabled();
     await page.getByRole("button", { name: "Run sheet check" }).click();
     await expect(
-      page.getByRole("heading", { name: "2. Confirm your columns" }),
+      page.getByRole("heading", { name: "Confirm your columns" }),
     ).toBeVisible();
     await convert();
     await expect(review).toContainText("plant_02");
@@ -320,7 +326,7 @@ try {
       const start = Date.now();
       await check("test-fixtures/100mb.csv");
       await page
-        .getByLabel("Rows sharing a period and series")
+        .getByLabel("Rows sharing a period and item")
         .selectOption("sum");
       await convert();
       await expect(
