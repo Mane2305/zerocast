@@ -25,39 +25,135 @@ import { apiConfigured } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
 import { SheetsImport } from "./sheets-import";
 
+const MAX_VISIBLE_COLUMN_OPTIONS = 120;
+
+function ColumnOptionPicker({
+  label,
+  columns,
+  selected,
+  maxSelected,
+  onChange,
+}: {
+  label: string;
+  columns: string[];
+  selected: string[];
+  maxSelected?: number;
+  onChange: (next: string[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const matching = normalizedQuery
+    ? columns.filter((column) =>
+        column.toLocaleLowerCase().includes(normalizedQuery),
+      )
+    : columns;
+  const visible = matching.slice(0, MAX_VISIBLE_COLUMN_OPTIONS);
+  const remaining = matching.length - visible.length;
+
+  return (
+    <div className="upload-column-picker">
+      <label className="upload-column-search">
+        <span className="sr-only">Search {label}</span>
+        <input
+          type="search"
+          aria-label={`Search ${label}`}
+          placeholder={`Search ${label.toLocaleLowerCase()}…`}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </label>
+      <p className="upload-column-count" aria-live="polite">
+        {selected.length} selected · {columns.length} available
+        {normalizedQuery &&
+          ` · ${matching.length} match${matching.length === 1 ? "" : "es"}`}
+      </p>
+      <div
+        className="upload-v2-columns"
+        role="group"
+        aria-label={label}
+        tabIndex={0}
+      >
+        {visible.map((column) => {
+          const checked = selected.includes(column);
+          return (
+            <label key={column} title={column}>
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={
+                  !checked &&
+                  maxSelected !== undefined &&
+                  selected.length >= maxSelected
+                }
+                onChange={(event) =>
+                  onChange(
+                    event.target.checked
+                      ? [...selected, column]
+                      : selected.filter((name) => name !== column),
+                  )
+                }
+              />
+              <span>{column}</span>
+            </label>
+          );
+        })}
+        {!visible.length && (
+          <p className="upload-column-empty">
+            No columns match “{query.trim()}”. Try another search.
+          </p>
+        )}
+      </div>
+      {remaining > 0 && (
+        <p className="upload-column-count">
+          Showing the first {visible.length} matches. Search to find the other{" "}
+          {remaining.toLocaleString()}.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Preview({ rows }: { rows: Record<string, string>[] }) {
   if (!rows.length) return null;
   const columns = Object.keys(rows[0]);
   return (
-    <div
-      className="table-scroll upload-preview"
-      tabIndex={0}
-      role="region"
-      aria-label="File preview"
-    >
-      <table>
-        <caption>First 5 rows · blanks stay unknown</caption>
-        <thead>
-          <tr>
-            {columns.map((c) => (
-              <th scope="col" key={c}>
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>
+    <div className="upload-preview-wrap">
+      {columns.length > 3 && (
+        <p className="upload-preview-hint">
+          {columns.length.toLocaleString()} columns · Scroll horizontally to
+          review all fields.
+        </p>
+      )}
+      <div
+        className="table-scroll upload-preview"
+        tabIndex={0}
+        role="region"
+        aria-label={`File preview · ${columns.length} columns · first ${rows.length} rows`}
+      >
+        <table>
+          <caption>First {rows.length} rows · blanks stay unknown</caption>
+          <thead>
+            <tr>
               {columns.map((c) => (
-                <td key={c}>
-                  {row[c] || <span className="muted">blank</span>}
-                </td>
+                <th scope="col" key={c} title={c}>
+                  {c}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={index}>
+                {columns.map((c) => (
+                  <td key={c} title={row[c] || undefined}>
+                    {row[c] || <span className="muted">blank</span>}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -463,57 +559,37 @@ export function UploadFlow() {
             </div>
             {mapping.format === "wide" ? (
               <fieldset>
-                <legend>Item columns · unselected columns are omitted</legend>
-                <div className="upload-v2-columns">
-                  {inspection.columns
-                    .filter((c) => c !== mapping.date)
-                    .map((c) => (
-                      <label key={c}>
-                        <input
-                          type="checkbox"
-                          checked={mapping.wideColumns?.includes(c) || false}
-                          onChange={(e) =>
-                            updateMapping({
-                              wideColumns: e.target.checked
-                                ? [...(mapping.wideColumns || []), c]
-                                : mapping.wideColumns?.filter(
-                                    (name) => name !== c,
-                                  ),
-                            })
-                          }
-                        />
-                        {c}
-                      </label>
-                    ))}
-                </div>
+                <legend>
+                  Item columns · {mapping.wideColumns?.length || 0} selected ·
+                  unselected columns are omitted
+                </legend>
+                <ColumnOptionPicker
+                  label="item columns"
+                  columns={inspection.columns.filter((c) => c !== mapping.date)}
+                  selected={mapping.wideColumns || []}
+                  onChange={(wideColumns) => updateMapping({ wideColumns })}
+                />
+                {(mapping.wideColumns?.length || 0) > 100 && (
+                  <p className="field-help">
+                    Forecast runs support up to 100 items at once. You can keep
+                    more items in this dataset and choose a smaller run later.
+                  </p>
+                )}
               </fieldset>
             ) : (
               <fieldset>
                 <legend>
-                  Hierarchy ID columns (optional; combined as store|product)
+                  Hierarchy ID columns (optional; combined as store|product) ·{" "}
+                  {mapping.idColumns?.length || 0} selected
                 </legend>
-                <div className="upload-v2-columns">
-                  {inspection.columns
-                    .filter((c) => ![mapping.date, mapping.target].includes(c))
-                    .map((c) => (
-                      <label key={c}>
-                        <input
-                          type="checkbox"
-                          checked={mapping.idColumns?.includes(c) || false}
-                          onChange={(e) =>
-                            updateMapping({
-                              idColumns: e.target.checked
-                                ? [...(mapping.idColumns || []), c]
-                                : mapping.idColumns?.filter(
-                                    (name) => name !== c,
-                                  ),
-                            })
-                          }
-                        />
-                        {c}
-                      </label>
-                    ))}
-                </div>
+                <ColumnOptionPicker
+                  label="hierarchy ID columns"
+                  columns={inspection.columns.filter(
+                    (c) => ![mapping.date, mapping.target].includes(c),
+                  )}
+                  selected={mapping.idColumns || []}
+                  onChange={(idColumns) => updateMapping({ idColumns })}
+                />
               </fieldset>
             )}
             <p className="field-help">
@@ -525,34 +601,25 @@ export function UploadFlow() {
                 <legend>
                   Optional drivers · {mapping.factors.length}/10 selected
                 </legend>
-                <div>
-                  {inspection.columns
-                    .filter(
-                      (c) =>
-                        ![
-                          mapping.date,
-                          mapping.series,
-                          mapping.target,
-                          ...(mapping.idColumns || []),
-                        ].includes(c),
-                    )
-                    .map((c) => (
-                      <label key={c}>
-                        <input
-                          type="checkbox"
-                          checked={mapping.factors.includes(c)}
-                          onChange={(event) =>
-                            updateMapping({
-                              factors: event.target.checked
-                                ? [...mapping.factors, c]
-                                : mapping.factors.filter((f) => f !== c),
-                            })
-                          }
-                        />
-                        {c}
-                      </label>
-                    ))}
-                </div>
+                <p className="field-help">
+                  Choose up to 10 numeric drivers. Search by name to find a
+                  column in a wide file.
+                </p>
+                <ColumnOptionPicker
+                  label="driver columns"
+                  columns={inspection.columns.filter(
+                    (c) =>
+                      ![
+                        mapping.date,
+                        mapping.series,
+                        mapping.target,
+                        ...(mapping.idColumns || []),
+                      ].includes(c),
+                  )}
+                  selected={mapping.factors}
+                  maxSelected={10}
+                  onChange={(factors) => updateMapping({ factors })}
+                />
               </fieldset>
             )}
             <div className="mapping-grid">

@@ -65,6 +65,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding-block: 12px;
 }
+.upload-panel fieldset {
+  min-width: 0;
+}
 .upload-v2-fields label {
   font-size: 12px;
   display: grid;
@@ -79,16 +82,94 @@
   color: var(--foreground);
 }
 .upload-v2-columns {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding-block: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  gap: 4px 8px;
+  max-height: 232px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
 }
 .upload-v2-columns label {
   display: flex;
   gap: 6px;
   align-items: center;
+  min-width: 0;
+  min-height: 36px;
+  padding: 5px 7px;
+  border-radius: 5px;
   font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.upload-v2-columns label:hover {
+  background: var(--muted);
+}
+.upload-v2-columns label span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.upload-v2-columns input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+.upload-v2-columns input:focus-visible,
+.upload-v2-columns:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.upload-v2-columns input:disabled + span {
+  color: var(--muted-foreground);
+}
+.upload-column-picker {
+  display: grid;
+  gap: 6px;
+  margin-block: 8px;
+}
+.upload-column-search {
+  display: block;
+  max-width: 420px;
+}
+.upload-column-search input {
+  min-height: 40px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+}
+.upload-column-search input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.upload-column-count,
+.upload-column-empty,
+.upload-preview-hint {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.upload-column-empty {
+  grid-column: 1 / -1;
+  padding: 8px;
+}
+.upload-preview-wrap {
+  min-width: 0;
+  max-width: 100%;
+  margin-block: 22px;
+}
+.upload-preview-hint {
+  margin-bottom: 7px;
+}
+.upload-preview-wrap .upload-preview {
+  margin: 0;
 }
 .sheets-import {
   border: 1px solid var(--border);
