@@ -377,13 +377,13 @@ One-time setup (owner):
 1. Hugging Face account → Settings → Access Tokens → new token with **write** access, then
    `cd backend && uv run hf auth login` and paste it.
 2. `make hf-space` (or `uv run python -m scripts.deploy_hf_space --space <user>/<name>`):
-   creates the public Space `Mane2305/zerocast-api`, sets the variable `ZC_CORS_ORIGINS`
+   creates the public Space `saurya-23/zerocast-api`, sets the variable `ZC_CORS_ORIGINS`
    (`--cors '["https://<app>.vercel.app"]'`, default localhost:3000) and uploads Dockerfile,
    uv files, `app/`, `migrations/` and the Space card `deploy/hf_space/README.md`.
 3. Space → Settings → **Variables and secrets** → New secret `ZC_DB_URL` = Neon's pooled URL.
    The Space restarts with it (without it the app uses SQLite inside the container).
-4. Build logs: `https://huggingface.co/spaces/Mane2305/zerocast-api?logs=build` (first build
-   ~10 min). Endpoint: `https://mane2305-zerocast-api.hf.space/health`.
+4. Build logs: `https://huggingface.co/spaces/saurya-23/zerocast-api?logs=build` (first build
+   ~10 min). Endpoint: `https://saurya-23-zerocast-api.hf.space/health`.
 5. Redeploy after code changes: `make hf-space` again.
 
 Limits: the Space must be public for the browser to call it (a private Space needs an HF token

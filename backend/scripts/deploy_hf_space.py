@@ -2,7 +2,7 @@
 
     cd backend
     uv run hf auth login                       # once, with a write token
-    uv run python -m scripts.deploy_hf_space   # creates/updates Mane2305/zerocast-api
+    uv run python -m scripts.deploy_hf_space   # creates/updates saurya-23/zerocast-api
 
 Uploads only what the image needs (Dockerfile, uv files, app/, migrations/) plus the Space card
 from deploy/hf_space/README.md; files on the Space that are no longer part of that set are
@@ -41,7 +41,7 @@ def space_url(space: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--space", default="Mane2305/zerocast-api")
+    parser.add_argument("--space", default="saurya-23/zerocast-api")
     parser.add_argument(
         "--cors",
         default='["http://localhost:3000"]',

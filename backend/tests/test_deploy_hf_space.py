@@ -17,4 +17,4 @@ def test_space_card_declares_a_docker_space_on_the_dockerfile_port():
 
 
 def test_space_url():
-    assert space_url("Mane2305/zerocast-api") == "https://mane2305-zerocast-api.hf.space"
+    assert space_url("saurya-23/zerocast-api") == "https://saurya-23-zerocast-api.hf.space"
