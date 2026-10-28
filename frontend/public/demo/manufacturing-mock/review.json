@@ -1,0 +1,61 @@
+{
+  "series": [
+    {
+      "series_id": "cement_index",
+      "positive_surprises": [
+        {
+          "date": "2023-05-01T00:00:00.000Z",
+          "actual": 103,
+          "expected_p50": 68,
+          "expected_p10": 56,
+          "expected_p90": 80,
+          "deviation_pct": 51.470588235294116
+        },
+        {
+          "date": "2023-09-01T00:00:00.000Z",
+          "actual": 117,
+          "expected_p50": 97,
+          "expected_p10": 85,
+          "expected_p90": 109,
+          "deviation_pct": 20.618556701030926,
+          "calendar_events": [
+            "Illustrative seasonal event"
+          ]
+        },
+        {
+          "date": "2024-01-01T00:00:00.000Z",
+          "actual": 103,
+          "expected_p50": 101,
+          "expected_p10": 89,
+          "expected_p90": 113,
+          "deviation_pct": 1.9801980198019802,
+          "calendar_events": [
+            "Illustrative recurring event"
+          ],
+          "recurring_as_expected": true
+        }
+      ],
+      "misses": [
+        {
+          "date": "2024-05-01T00:00:00.000Z",
+          "actual": 123,
+          "expected_p50": 153,
+          "expected_p10": 141,
+          "expected_p90": 165,
+          "deviation_pct": -19.607843137254903
+        },
+        {
+          "date": "2024-09-01T00:00:00.000Z",
+          "actual": 110,
+          "expected_p50": 128,
+          "expected_p10": 116,
+          "expected_p90": 140,
+          "deviation_pct": -14.0625
+        }
+      ],
+      "actual_total": 4161,
+      "expected_total": 4154,
+      "band_coverage": 0.83
+    }
+  ]
+}

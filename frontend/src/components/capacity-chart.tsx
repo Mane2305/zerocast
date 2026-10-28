@@ -1,0 +1,103 @@
+"use client";
+import { useEffect, useRef } from "react";
+import { useTheme } from "next-themes";
+import * as echarts from "echarts/core";
+import { BarChart } from "echarts/charts";
+import {
+  GridComponent,
+  TooltipComponent,
+  AriaComponent,
+} from "echarts/components";
+import { SVGRenderer } from "echarts/renderers";
+import { formatPeriod, type Frequency } from "@/lib/dates";
+import { probabilityText } from "@/lib/forecast";
+echarts.use([
+  BarChart,
+  GridComponent,
+  TooltipComponent,
+  AriaComponent,
+  SVGRenderer,
+]);
+export default function CapacityChart({
+  dates,
+  frequency,
+  bounds,
+}: {
+  dates: string[];
+  frequency: Frequency;
+  bounds: [number, number][];
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { resolvedTheme } = useTheme();
+  useEffect(() => {
+    if (!ref.current) return;
+    const chart = echarts.init(ref.current, undefined, { renderer: "svg" });
+    const color = resolvedTheme === "dark" ? "#8dd7b4" : "#23684f";
+    chart.setOption({
+      animation: false,
+      aria: { enabled: true },
+      grid: { left: 45, right: 10, top: 15, bottom: 45 },
+      xAxis: {
+        type: "category",
+        data: dates.map((date) => formatPeriod(date, frequency)),
+        axisLabel: { hideOverlap: true, color },
+      },
+      yAxis: {
+        type: "value",
+        min: 0,
+        max: 100,
+        axisLabel: { formatter: "{value}%", color },
+      },
+      tooltip: { trigger: "axis", renderMode: "richText" },
+      series: [
+        {
+          type: "bar",
+          name: "Upper probability bound",
+          data: bounds.map((value) => ({
+            value: value[1],
+            tooltip: { formatter: probabilityText(value) },
+          })),
+          itemStyle: { color },
+          barMaxWidth: 18,
+        },
+      ],
+    });
+    const observer = new ResizeObserver(() => chart.resize());
+    observer.observe(ref.current);
+    return () => {
+      observer.disconnect();
+      chart.dispose();
+    };
+  }, [dates, frequency, bounds, resolvedTheme]);
+  return (
+    <>
+      <div
+        ref={ref}
+        className="capacity-chart"
+        role="img"
+        aria-label="Capacity breach risk per period; bars show upper probability bounds"
+      />
+      <details>
+        <summary>Probability ranges by period</summary>
+        <div className="health-table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th>Chance above capacity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dates.map((date, i) => (
+                <tr key={date}>
+                  <th>{formatPeriod(date, frequency)}</th>
+                  <td>{probabilityText(bounds[i])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </>
+  );
+}

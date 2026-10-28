@@ -1,0 +1,28 @@
+{
+  "dataset_id": "manufacturing-mock",
+  "additive": true,
+  "name": "Synthetic cement production",
+  "frequency": "monthly",
+  "holiday_country": "IN",
+  "series_count": 1,
+  "factor_columns": [],
+  "date_range": {
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2025-12-01T00:00:00.000Z"
+  },
+  "series": [
+    {
+      "series_id": "cement_index",
+      "length": 36,
+      "status": "ready",
+      "start": "2023-01-01T00:00:00.000Z",
+      "end": "2025-12-01T00:00:00.000Z",
+      "missing_count": 0,
+      "issues": []
+    }
+  ],
+  "health": {
+    "ready": true,
+    "checks": []
+  }
+}

@@ -1,0 +1,125 @@
+.studio-chart-wrap {
+  position: relative;
+  padding-top: 28px;
+  min-width: 0;
+}
+.studio-chart {
+  width: 100%;
+  min-width: 0;
+}
+.module-chart-card {
+  margin-block: 16px;
+  padding: 12px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+}
+.studio .module-chart-card h2,
+.studio .driver-multiples > h2 {
+  font-size: 14px;
+}
+.module-chart-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.module-chart-card small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.module-chart-heading select {
+  padding: 5px 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.driver-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.driver-cards > article {
+  margin-block: 0;
+}
+.driver-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.driver-pair h4 {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.driver-multiples {
+  margin-block: 20px;
+}
+.driver-multiples > h2 {
+  margin-bottom: 12px;
+}
+.upload-v2-fields {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-block: 12px;
+}
+.upload-v2-fields label {
+  font-size: 12px;
+  display: grid;
+  gap: 6px;
+}
+.upload-v2-fields select,
+.upload-v2-fields input:not([type="checkbox"]) {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--card);
+  color: var(--foreground);
+}
+.upload-v2-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-block: 8px;
+}
+.upload-v2-columns label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+.sheets-import {
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--card);
+  margin-block: 16px;
+}
+.sheets-import input {
+  width: 100%;
+  padding: 8px;
+  margin-block: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+}
+@media (max-width: 1000px) {
+  .driver-cards {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .studio .portfolio-filters > label {
+    flex: none;
+    width: 100%;
+  }
+  .module-chart-card {
+    padding: 12px;
+  }
+  .driver-pair,
+  .upload-v2-fields {
+    grid-template-columns: 1fr;
+  }
+}

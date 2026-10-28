@@ -1,0 +1,7 @@
+{
+  "inputBytes": 100003868,
+  "inputRows": 781280,
+  "outputRows": 40,
+  "elapsedMs": 8928,
+  "result": "Local inspection, aggregation, Parquet conversion and Prism upload passed"
+}

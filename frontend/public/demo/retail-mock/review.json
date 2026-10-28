@@ -1,0 +1,61 @@
+{
+  "series": [
+    {
+      "series_id": "grocery_units",
+      "positive_surprises": [
+        {
+          "date": "2026-01-05T00:00:00.000Z",
+          "actual": 118,
+          "expected_p50": 83,
+          "expected_p10": 71,
+          "expected_p90": 95,
+          "deviation_pct": 42.168674698795186
+        },
+        {
+          "date": "2026-01-09T00:00:00.000Z",
+          "actual": 132,
+          "expected_p50": 112,
+          "expected_p10": 100,
+          "expected_p90": 124,
+          "deviation_pct": 17.857142857142858,
+          "calendar_events": [
+            "Illustrative seasonal event"
+          ]
+        },
+        {
+          "date": "2026-01-13T00:00:00.000Z",
+          "actual": 118,
+          "expected_p50": 116,
+          "expected_p10": 104,
+          "expected_p90": 128,
+          "deviation_pct": 1.7241379310344827,
+          "calendar_events": [
+            "Illustrative recurring event"
+          ],
+          "recurring_as_expected": true
+        }
+      ],
+      "misses": [
+        {
+          "date": "2026-01-17T00:00:00.000Z",
+          "actual": 138,
+          "expected_p50": 168,
+          "expected_p10": 156,
+          "expected_p90": 180,
+          "deviation_pct": -17.857142857142858
+        },
+        {
+          "date": "2026-01-21T00:00:00.000Z",
+          "actual": 125,
+          "expected_p50": 143,
+          "expected_p10": 131,
+          "expected_p90": 155,
+          "deviation_pct": -12.587412587412588
+        }
+      ],
+      "actual_total": 4701,
+      "expected_total": 4694,
+      "band_coverage": 0.83
+    }
+  ]
+}
