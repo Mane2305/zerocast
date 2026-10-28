@@ -42,7 +42,7 @@ export function DataHealthView({
         <p>Reading dataset checks and item history summaries.</p>
       </section>
     );
-  if (query.isError)
+  if (query.isError && !query.data)
     return (
       <section className="route-state" role="alert">
         <p className="eyebrow">DATA QUALITY</p>
@@ -68,6 +68,7 @@ export function DataHealthView({
       dataset={query.data}
       source={source}
       refreshing={query.isFetching}
+      refreshError={query.isError ? query.error : null}
       refresh={() => query.refetch()}
     />
   );
@@ -77,11 +78,13 @@ function HealthReport({
   dataset,
   source,
   refreshing,
+  refreshError,
   refresh,
 }: {
   dataset: Dataset;
   source: "api" | "demo";
   refreshing: boolean;
+  refreshError: Error | null;
   refresh: () => void;
 }) {
   const [tab, setTab] = useState<string>("all");
@@ -214,6 +217,18 @@ function HealthReport({
           {refreshing ? "Refreshing…" : "Refresh report"}
         </Button>
       </section>
+      {refreshError && (
+        <div className="health-notice severity-warning" role="alert">
+          <div>
+            <strong>Could not refresh this report</strong>
+            <p>{refreshError.message}</p>
+            <small>Showing the last successfully loaded report.</small>
+          </div>
+          <Button variant="outline" onClick={refresh} disabled={refreshing}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       <section
         className={`health-readiness ${dataset.health.ready ? "is-ready" : "is-blocked"}`}
@@ -581,9 +596,14 @@ function HealthReport({
                   </div>
                 </nav>
               )}
-              {!rows.length && (
+              {!rows.length && series.length > 0 && (
                 <p className="health-table-empty">
                   No items match. Clear your filters.
+                </p>
+              )}
+              {!rows.length && series.length === 0 && (
+                <p className="health-table-empty">
+                  This dataset has no item summaries to display.
                 </p>
               )}
             </>
