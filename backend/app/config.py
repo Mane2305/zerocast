@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     prewarm_max_items: int = Field(default=20, ge=1, le=100)
     # Browser origins allowed to call the API (the Next.js dev server by default).
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # Also allowed: origins matching this regex (e.g. every Vercel deployment of the project).
+    cors_origin_regex: str | None = None
 
 
 @lru_cache

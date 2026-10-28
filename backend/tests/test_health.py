@@ -1,4 +1,7 @@
+from fastapi.testclient import TestClient
+
 from app import __version__
+from app.main import create_app
 from tests.contract import assert_matches_schema
 
 
@@ -33,3 +36,20 @@ def test_cors_allows_the_frontend_dev_server(client):
     assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
     other = client.get("/health", headers={"Origin": "http://evil.example"})
     assert "access-control-allow-origin" not in other.headers
+
+
+VERCEL_ORIGINS = r"https://zerocast(-[a-z0-9-]+)?\.vercel\.app"  # as in modal_app.py
+
+
+def test_cors_origin_regex_allows_vercel_deployments(settings):
+    settings = settings.model_copy(update={"cors_origin_regex": VERCEL_ORIGINS})
+    with TestClient(create_app(settings)) as client:
+        for origin in [
+            "https://zerocast.vercel.app",
+            "https://zerocast-git-main-mane2305s-projects.vercel.app",
+        ]:
+            response = client.get("/health", headers={"Origin": origin})
+            assert response.headers["access-control-allow-origin"] == origin
+        for origin in ["https://other.vercel.app", "https://zerocast.vercel.app.evil.example"]:
+            response = client.get("/health", headers={"Origin": origin})
+            assert "access-control-allow-origin" not in response.headers
