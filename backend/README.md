@@ -366,6 +366,32 @@ with no requests for longer than the scale-down window it can be cut off and is 
 `failed` (`interrupted`) on the next start. CORS allows only `ZC_CORS_ORIGINS` (Vercel preview
 URLs need adding explicitly). Per-IP rate limiting is not implemented yet.
 
+## Deploy: Hugging Face Spaces (free, no card)
+
+A Docker Space on the free "CPU basic" hardware (2 vCPU, 16 GB RAM), with Neon as the database.
+`Dockerfile` builds a Python 3.11 image with `uv sync --frozen --no-dev` (yug pinned by
+uv.lock), downloads the weights into the image at build time (`HF_HUB_OFFLINE=1` at runtime) and
+runs uvicorn on port 7860. One container, so the single model worker rule holds.
+
+One-time setup (owner):
+1. Hugging Face account → Settings → Access Tokens → new token with **write** access, then
+   `cd backend && uv run hf auth login` and paste it.
+2. `make hf-space` (or `uv run python -m scripts.deploy_hf_space --space <user>/<name>`):
+   creates the public Space `Mane2305/zerocast-api`, sets the variable `ZC_CORS_ORIGINS`
+   (`--cors '["https://<app>.vercel.app"]'`, default localhost:3000) and uploads Dockerfile,
+   uv files, `app/`, `migrations/` and the Space card `deploy/hf_space/README.md`.
+3. Space → Settings → **Variables and secrets** → New secret `ZC_DB_URL` = Neon's pooled URL.
+   The Space restarts with it (without it the app uses SQLite inside the container).
+4. Build logs: `https://huggingface.co/spaces/Mane2305/zerocast-api?logs=build` (first build
+   ~10 min). Endpoint: `https://mane2305-zerocast-api.hf.space/health`.
+5. Redeploy after code changes: `make hf-space` again.
+
+Limits: the Space must be public for the browser to call it (a private Space needs an HF token
+on every request), so the backend source is visible; secrets stay hidden. Uploaded files are on
+the container disk and are **lost on restart**: datasets uploaded before a restart still appear
+in Neon but their data is gone. Free Spaces sleep after 48 h without visits; the next visit
+restarts the container (~1 min plus model load). 2 vCPU, so forecasts are slower than locally.
+
 ## Configuration
 
 All settings come from environment variables (or a git-ignored `backend/.env` file).

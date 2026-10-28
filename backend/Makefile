@@ -1,7 +1,7 @@
 UV ?= uv
 LINT_PATHS = . ../data/scripts
 
-.PHONY: install test lint format run demo-data migrate deploy-weights deploy
+.PHONY: install test lint format run demo-data migrate deploy-weights deploy hf-space
 
 install:
 	$(UV) sync
@@ -35,3 +35,7 @@ deploy-weights:
 
 deploy:
 	$(UV) run --group deploy modal deploy modal_app.py
+
+# Hugging Face Space (see README "Deploy: Hugging Face Spaces"). Needs `uv run hf auth login`.
+hf-space:
+	$(UV) run python -m scripts.deploy_hf_space
