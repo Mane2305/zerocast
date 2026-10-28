@@ -4,8 +4,9 @@
     uv run --group deploy modal run modal_app.py::download_weights   # once: weights → Volume
     uv run --group deploy modal deploy modal_app.py                  # prints the endpoint URL
 
-Needs a Modal secret named `zerocast` holding ZC_DB_URL (Neon) and ZC_CORS_ORIGINS
-(the Vercel domain, JSON list), and optionally HF_TOKEN. See backend/README.md "Deploy (B14)".
+Needs a Modal secret named `zerocast` (or the name in ZC_MODAL_SECRET at deploy time) holding
+ZC_DB_URL (Neon) and ZC_CORS_ORIGINS (the Vercel domain, JSON list), and optionally HF_TOKEN.
+See backend/README.md "Deploy (B14)".
 
 Fast cold starts (B15):
 - Memory snapshot: imports, weight loading and a warm-up forecast run once in
@@ -53,7 +54,7 @@ image = (
 )
 
 app = modal.App(APP_NAME, image=image)
-secrets = [modal.Secret.from_name("zerocast")]
+secrets = [modal.Secret.from_name(os.environ.get("ZC_MODAL_SECRET", "zerocast"))]
 volumes = {WEIGHTS_DIR: weights, UPLOADS_DIR: uploads}
 
 

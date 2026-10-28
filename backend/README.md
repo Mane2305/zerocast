@@ -350,6 +350,8 @@ One-time setup (owner):
      ZC_CORS_ORIGINS='["https://<your-app>.vercel.app"]'
    # optional: HF_TOKEN=hf_...  (higher Hugging Face rate limits)
    ```
+   A secret with another name works too: set `ZC_MODAL_SECRET=<name>` when running
+   `make deploy-weights` / `make deploy`.
 3. `make deploy-weights` (downloads ~1.1 GB once into the Volume), then `make deploy`.
    Modal prints the endpoint, e.g. `https://<workspace>--zerocast-api.modal.run`.
 4. Check: `curl https://<endpoint>/health` (first call cold-starts: ~20-40 s plus model
