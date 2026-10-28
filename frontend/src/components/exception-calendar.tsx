@@ -1,0 +1,181 @@
+"use client";
+import { useState } from "react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { validAccuracy } from "@/lib/accuracy";
+import { getAccuracyJob } from "@/lib/api/accuracy";
+import { useDatasetPreferences } from "@/lib/preferences";
+import { formatPeriod, type Frequency } from "@/lib/dates";
+import type { ReviewSeries } from "@/lib/forecast-story";
+import { InfoTip } from "./info-tip";
+import type { EChartsOption } from "echarts";
+const Chart = dynamic(() => import("./studio-chart"), {
+  ssr: false,
+  loading: () => <p role="status">Loading exception calendar…</p>,
+});
+export function ExceptionCalendar({
+  id,
+  series,
+  saved,
+  frequency,
+}: {
+  id: string;
+  series: ReviewSeries;
+  saved: boolean;
+  frequency: Frequency;
+}) {
+  const preferences = useDatasetPreferences(id);
+  const [pickedYear, setYear] = useState("");
+  const query = useQuery({
+    queryKey: ["exception-accuracy", id, saved, preferences.accuracyJob],
+    queryFn: async ({ signal }) => {
+      if (saved) {
+        const r = await fetch(`/demo/${encodeURIComponent(id)}/accuracy.json`, {
+          signal,
+        });
+        if (!r.ok) throw new Error("Complete backtest unavailable.");
+        const value: unknown = await r.json();
+        if (!validAccuracy(value)) throw new Error("Invalid backtest data.");
+        return value;
+      }
+      const job = await getAccuracyJob(preferences.accuracyJob!, signal);
+      return job.status === "succeeded" && validAccuracy(job.result)
+        ? job.result
+        : null;
+    },
+    enabled: saved || !!preferences.accuracyJob,
+  });
+  const item = query.data?.series.find(
+    (item) => item.series_id === series.series_id,
+  );
+  const years = [
+    ...new Set(item?.backtest.dates.map((date) => date.slice(0, 4)) || []),
+  ].sort();
+  const year = years.includes(pickedYear) ? pickedYear : years.at(-1);
+  const events = new Map(
+    [...series.positive_surprises, ...series.misses]
+      .filter((e) => e.calendar_events?.length)
+      .map((e) => [e.date.slice(0, 10), e.calendar_events!.join(", ")]),
+  );
+  const b = item?.backtest;
+  const points =
+    b?.dates.flatMap((date, i) =>
+      b.actual[i] === null || date.slice(0, 4) !== year
+        ? []
+        : [
+            {
+              name: `${formatPeriod(date, frequency)} · ${events.get(date.slice(0, 10)) || "No supplied calendar event"}`,
+              value: [
+                date.slice(0, 10),
+                b.actual[i]! < b.p10[i] ? -1 : b.actual[i]! > b.p90[i] ? 1 : 0,
+              ],
+              label: events.has(date.slice(0, 10))
+                ? { show: true, formatter: "◊", color: "#754a12" }
+                : { show: false },
+            },
+          ],
+    ) || [];
+  const daily = ["daily", "weekly"].includes(frequency);
+  const option: EChartsOption = {
+    tooltip: {
+      trigger: "item",
+      renderMode: "richText",
+      formatter: (p) => {
+        const v = Array.isArray(p) ? p[0] : p;
+        return `${v.name}\n${Array.isArray(v.value) && Number(v.value.at(-1)) < 0 ? "Below forecast range" : Array.isArray(v.value) && Number(v.value.at(-1)) > 0 ? "Above forecast range" : "Inside forecast range"}`;
+      },
+    },
+    visualMap: {
+      type: "piecewise",
+      orient: "horizontal",
+      left: "center",
+      bottom: 0,
+      pieces: [
+        { value: -1, label: "Demand drop", color: "#c36b66" },
+        { value: 0, label: "Inside range", color: "#c8d1cc" },
+        { value: 1, label: "Demand spike", color: "#38966e" },
+      ],
+    },
+    ...(daily
+      ? {
+          calendar: {
+            top: 35,
+            left: 45,
+            right: 15,
+            range: year,
+            cellSize: ["auto", 20],
+            splitLine: { show: false },
+            itemStyle: { color: "transparent", borderColor: "#e0e5e1" },
+            yearLabel: { show: false },
+          },
+          series: [
+            { type: "heatmap", coordinateSystem: "calendar", data: points },
+          ],
+        }
+      : {
+          grid: { top: 25, left: 25, right: 25, bottom: 70 },
+          xAxis: {
+            type: "category",
+            data: points.map((p) => p.name.split(" · ")[0]),
+            axisLabel: { hideOverlap: true },
+          },
+          yAxis: { type: "category", data: [year || "Periods"] },
+          series: [
+            {
+              type: "heatmap",
+              data: points.map((p, i) => ({ ...p, value: [i, 0, p.value[1]] })),
+            },
+          ],
+        }),
+  };
+  return (
+    <section className="module-chart-card">
+      <div className="module-chart-heading">
+        <h2>
+          Exceptions calendar{" "}
+          <InfoTip label="Exception calendar definition">
+            Colors compare actuals with the supplied P10–P90 backtest range.
+            Unreported periods remain blank. ◊ marks a supplied calendar event,
+            not a cause. Hourly records show their source date.
+          </InfoTip>
+        </h2>
+        {years.length > 1 && (
+          <select
+            aria-label="Calendar year"
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+          >
+            {years.map((year) => (
+              <option key={year}>{year}</option>
+            ))}
+          </select>
+        )}
+      </div>
+      {item && points.length ? (
+        <Chart
+          option={option}
+          label="Exceptions calendar heatmap"
+          height={240}
+        />
+      ) : (
+        <p role="status">
+          {query.isFetching
+            ? "Loading complete backtest…"
+            : "Complete backtest unavailable. "}
+          {!query.isFetching && (
+            <Link
+              className="text-link"
+              href={saved ? `/accuracy/demo/${id}` : `/accuracy/dataset/${id}`}
+            >
+              Open Accuracy
+            </Link>
+          )}
+        </p>
+      )}
+      <small>
+        Only supplied periods are colored · {year || "No year supplied"}
+      </small>
+    </section>
+  );
+}

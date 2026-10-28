@@ -1,0 +1,590 @@
+"use client";
+import { InfoTip } from "./info-tip";
+import { formatPeriod } from "@/lib/dates";
+import { findDemo } from "@/lib/demos";
+import { useState } from "react";
+import { PortfolioBubbles } from "./portfolio-bubbles";
+import { validAccuracy } from "@/lib/accuracy";
+import { getAccuracyJob } from "@/lib/api/accuracy";
+import { useDatasetPreferences } from "@/lib/preferences";
+import { valueFormatter } from "@/lib/numbers";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { getForecastJob } from "@/lib/api/forecast";
+import { isDataset, loadHealth, type Dataset } from "@/lib/data-health";
+import { validForecast, type Forecast } from "@/lib/forecast";
+import {
+  portfolioCsv,
+  sortRisk,
+  trustText,
+  type RiskSort,
+} from "@/lib/portfolio";
+
+async function loadDemo(id: string, signal: AbortSignal) {
+  const read = async (file: string) => {
+    const r = await fetch(`/demo/${encodeURIComponent(id)}/${file}.json`, {
+      signal,
+    });
+    if (!r.ok)
+      throw new Error(
+        `The saved demo ${file} file is unavailable (HTTP ${r.status}).`,
+      );
+    return r.json() as Promise<unknown>;
+  };
+  const [dataset, forecast] = await Promise.all([
+    read("dataset"),
+    read("forecast"),
+  ]);
+  if (
+    !isDataset(dataset) ||
+    dataset.dataset_id !== id ||
+    !validForecast(forecast)
+  )
+    throw new Error(
+      "The saved demo does not contain a valid dataset and forecast report.",
+    );
+  return { dataset, forecast };
+}
+export function PortfolioDemo({ id }: { id: string }) {
+  const query = useQuery({
+    queryKey: ["portfolio-demo", id],
+    queryFn: ({ signal }) => loadDemo(id, signal),
+    staleTime: Infinity,
+  });
+  if (query.isPending) return <PortfolioLoading />;
+  if (query.isError)
+    return (
+      <PortfolioError
+        message={query.error.message}
+        retry={() => query.refetch()}
+      />
+    );
+  return (
+    <PortfolioTable
+      dataset={query.data.dataset}
+      forecast={query.data.forecast}
+      source="demo"
+      id={id}
+    />
+  );
+}
+export function PortfolioJob({ id, jobId }: { id: string; jobId: string }) {
+  const dataset = useQuery({
+    queryKey: ["data-health", "api", id],
+    queryFn: ({ signal }) => loadHealth(id, "api", signal),
+  });
+  const job = useQuery({
+    queryKey: ["forecast-job", jobId],
+    queryFn: ({ signal }) => getForecastJob(jobId, signal),
+  });
+  if (dataset.isPending || job.isPending) return <PortfolioLoading />;
+  if (dataset.isError || job.isError)
+    return (
+      <PortfolioError
+        message={
+          dataset.error?.message ||
+          job.error?.message ||
+          "Portfolio unavailable."
+        }
+        retry={() => {
+          dataset.refetch();
+          job.refetch();
+        }}
+      />
+    );
+  if (job.data.status !== "succeeded")
+    return (
+      <section className="route-state">
+        <p className="eyebrow">PORTFOLIO</p>
+        <h1>
+          {job.data.status === "failed"
+            ? "This forecast failed."
+            : "The forecast is still in progress."}
+        </h1>
+        <p>
+          {job.data.error?.message ||
+            job.data.message ||
+            "Portfolio is available after a forecast completes."}
+        </p>
+        <p>Progress: {job.data.progress}%</p>
+        <div className="download-actions">
+          <Button asChild>
+            <Link
+              href={`/forecast/dataset/${encodeURIComponent(id)}?${new URLSearchParams({ job: jobId })}`}
+            >
+              Open forecast job
+            </Link>
+          </Button>
+          <Button variant="outline" onClick={() => job.refetch()}>
+            Refresh status
+          </Button>
+        </div>
+      </section>
+    );
+  if (!validForecast(job.data.result))
+    return (
+      <PortfolioError
+        message="The job does not contain valid forecast risk metrics."
+        retry={() => job.refetch()}
+      />
+    );
+  return (
+    <PortfolioTable
+      dataset={dataset.data}
+      forecast={job.data.result}
+      source="api"
+      id={id}
+      jobId={jobId}
+    />
+  );
+}
+function PortfolioLoading() {
+  return (
+    <section className="route-state" role="status">
+      <p className="eyebrow">PORTFOLIO</p>
+      <h1>Loading portfolio risk…</h1>
+      <p>Reading the supplied forecast risk metrics.</p>
+    </section>
+  );
+}
+function PortfolioError({
+  message,
+  retry,
+}: {
+  message: string;
+  retry: () => void;
+}) {
+  return (
+    <section className="route-state" role="alert">
+      <p className="eyebrow">PORTFOLIO</p>
+      <h1>Portfolio unavailable</h1>
+      <p>{message}</p>
+      <div className="download-actions">
+        <Button onClick={retry}>Retry portfolio</Button>
+        <Button asChild variant="outline">
+          <Link href="/portfolio">Choose another forecast</Link>
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function PortfolioTable({
+  dataset,
+  forecast,
+  source,
+  id,
+  jobId,
+}: {
+  dataset: Dataset;
+  forecast: Forecast;
+  source: "api" | "demo";
+  id: string;
+  jobId?: string;
+}) {
+  const router = useRouter();
+  const [sort, setSort] = useState<RiskSort>("uncertainty");
+  const [descending, setDescending] = useState(true);
+  const [search, setSearch] = useState("");
+  const [direction, setDirection] = useState("all");
+  const [label, setLabel] = useState("all");
+  const [groupBy, setGroupBy] = useState("");
+  const [groupValue, setGroupValue] = useState("");
+  const attributes = new Map(
+    dataset.series?.map((s) => [s.series_id, s.attributes]),
+  );
+  const groups = [
+    ...new Set(
+      dataset.series?.map((s) => s.attributes?.[groupBy] || "Not supplied"),
+    ),
+  ].sort();
+  const preferences = useDatasetPreferences(id);
+  const accuracy = useQuery({
+    queryKey: ["portfolio-accuracy", source, id, preferences.accuracyJob],
+    queryFn: async ({ signal }) => {
+      if (source === "demo") {
+        const r = await fetch(`/demo/${encodeURIComponent(id)}/accuracy.json`, {
+          signal,
+        });
+        if (!r.ok) return null;
+        const data: unknown = await r.json();
+        return validAccuracy(data) ? data : null;
+      }
+      const job = await getAccuracyJob(preferences.accuracyJob!, signal);
+      return job.status === "succeeded" && validAccuracy(job.result)
+        ? job.result
+        : null;
+    },
+    enabled: source === "demo" || !!preferences.accuracyJob,
+  });
+  const quantity = valueFormatter({
+    country: dataset.holiday_country,
+    unit: dataset.unit || findDemo(id)?.unit,
+  });
+  const number = (v: number) =>
+    v.toLocaleString(dataset.holiday_country === "IN" ? "en-IN" : undefined, {
+      maximumFractionDigits: 1,
+    });
+  const rows = sortRisk(
+    forecast.series.filter(
+      (s) =>
+        s.series_id.toLocaleLowerCase().includes(search.toLocaleLowerCase()) &&
+        (!groupBy ||
+          !groupValue ||
+          (attributes.get(s.series_id)?.[groupBy] || "Not supplied") ===
+            groupValue) &&
+        (direction === "all" || direction === s.risk.risk_direction) &&
+        (label === "all" ||
+          (label === "unreported"
+            ? s.risk.uncertainty_label === undefined
+            : label === s.risk.uncertainty_label)),
+    ),
+    sort,
+    descending,
+  );
+  if (groupBy)
+    rows.sort((a, b) =>
+      (attributes.get(a.series_id)?.[groupBy] || "Not supplied").localeCompare(
+        attributes.get(b.series_id)?.[groupBy] || "Not supplied",
+      ),
+    );
+  const url = (seriesId: string) =>
+    source === "demo"
+      ? `/forecast/${encodeURIComponent(id)}?${new URLSearchParams({ series: seriesId })}`
+      : `/forecast/dataset/${encodeURIComponent(id)}?${new URLSearchParams({ job: jobId!, series: seriesId })}`;
+  const changeSort = (column: RiskSort) => {
+    setSort(column);
+    setDescending(sort === column ? !descending : column === "uncertainty");
+  };
+  function download() {
+    const href = URL.createObjectURL(
+      new Blob([portfolioCsv(rows, dataset.frequency)], {
+        type: "text/csv;charset=utf-8",
+      }),
+    );
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = "zerocast-portfolio-risk.csv";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(href), 1000);
+  }
+  return (
+    <section className="health-page portfolio-page">
+      <div className="health-heading">
+        <div>
+          <p className="eyebrow">
+            PORTFOLIO ·{" "}
+            {source === "demo"
+              ? findDemo(id)?.synthetic
+                ? "SYNTHETIC DEMO"
+                : "PRECOMPUTED MODEL FORECAST"
+              : "COMPLETED FORECAST"}
+          </p>
+          <h1>Portfolio</h1>
+          <p>{dataset.name}</p>
+        </div>
+        <Button variant="outline" onClick={download} disabled={!rows.length}>
+          Export visible rows
+        </Button>
+      </div>
+
+      <div className="health-stats">
+        <article>
+          <span>Items in forecast</span>
+          <strong>{number(forecast.series.length)}</strong>
+          <small>{number(dataset.series_count)} items in dataset</small>
+        </article>
+        <article>
+          <span>
+            High variability{" "}
+            <InfoTip label="Forecast variability definition">
+              Width of the forecast range relative to the base case. Higher
+              means less predictable. The percentage is the full range width,
+              not a plus/minus value.
+            </InfoTip>
+          </span>
+          <strong>
+            {number(
+              forecast.series.filter(
+                (s) => s.risk.uncertainty_label === "volatile",
+              ).length,
+            )}
+          </strong>
+          <small>Classification supplied by the source</small>
+        </article>
+        <article>
+          <span>Forecast frequency</span>
+          <strong className="capitalize">{dataset.frequency}</strong>
+          <small>Reliable horizon uses this cadence</small>
+        </article>
+      </div>
+      <div className="health-filters portfolio-filters">
+        {!!dataset.hierarchy?.length && (
+          <>
+            <label>
+              Group by
+              <select
+                aria-label="Group portfolio by"
+                value={groupBy}
+                onChange={(e) => {
+                  setGroupBy(e.target.value);
+                  setGroupValue("");
+                }}
+              >
+                <option value="">No grouping</option>
+                {dataset.hierarchy.map((column) => (
+                  <option key={column}>{column}</option>
+                ))}
+              </select>
+            </label>
+            {groupBy && (
+              <label>
+                Group
+                <select
+                  aria-label="Portfolio group"
+                  value={groupValue}
+                  onChange={(e) => setGroupValue(e.target.value)}
+                >
+                  <option value="">All groups</option>
+                  {groups.map((name) => (
+                    <option key={name}>{name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </>
+        )}
+        <label>
+          Search items
+          <input
+            aria-label="Search items"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Item ID"
+          />
+        </label>
+        <label>
+          Variability label
+          <select
+            aria-label="Variability label"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          >
+            <option value="all">All labels</option>
+            <option value="predictable">Predictable</option>
+            <option value="moderate">Moderate</option>
+            <option value="volatile">Volatile</option>
+            <option value="unreported">Not reported</option>
+          </select>
+        </label>
+        <label>
+          Demand risk
+          <select
+            aria-label="Demand risk"
+            value={direction}
+            onChange={(e) => setDirection(e.target.value)}
+          >
+            <option value="all">All directions</option>
+            <option value="upside">Upside</option>
+            <option value="downside">Downside</option>
+            <option value="balanced">Balanced</option>
+          </select>
+        </label>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setSearch("");
+            setDirection("all");
+            setLabel("all");
+          }}
+        >
+          Clear filters
+        </Button>
+      </div>
+      <p className="health-note" role="status">
+        {number(rows.length)} of {number(forecast.series.length)} items shown.
+      </p>
+      <PortfolioBubbles
+        rows={rows}
+        additive={dataset.additive}
+        unit={dataset.unit || findDemo(id)?.unit}
+        country={dataset.holiday_country}
+        onSelect={(id) => router.push(url(id))}
+      />
+      <div
+        className="health-table-scroll portfolio-table"
+        tabIndex={0}
+        role="region"
+        aria-label="Portfolio table"
+      >
+        <table>
+          <caption className="sr-only">
+            Risk metrics for each forecast item
+          </caption>
+          <thead>
+            <tr>
+              {groupBy && <th>{groupBy}</th>}
+              {(
+                [
+                  ["series_id", "Item"],
+                  ["uncertainty", "Forecast variability"],
+                  ["direction", "Demand risk"],
+                  ["trust", "Reliable horizon"],
+                ] as const
+              ).map(([key, title]) => (
+                <th
+                  key={key}
+                  aria-sort={
+                    sort === key
+                      ? descending
+                        ? "descending"
+                        : "ascending"
+                      : "none"
+                  }
+                >
+                  <button onClick={() => changeSort(key)}>
+                    {title} {sort === key ? (descending ? "↓" : "↑") : "↕"}
+                  </button>
+                  <InfoTip label={`${title} definition`}>
+                    {key === "series_id"
+                      ? "The product, SKU, store × product, or plant being forecast."
+                      : key === "uncertainty"
+                        ? "Full forecast range width relative to the base case. Higher means less predictable; this is not a plus/minus percentage."
+                        : key === "direction"
+                          ? "Whether demand exceptions are more likely to be spikes (upside) or drops (downside), based on the supplied distribution."
+                          : "How far ahead the forecast stays reasonably tight, under the model’s threshold."}
+                  </InfoTip>
+                </th>
+              ))}
+              <th>
+                {dataset.additive ? "Base case total" : "Base case average"}
+              </th>
+              <th>
+                WAPE{" "}
+                <InfoTip label="Portfolio WAPE source">
+                  Supplied Accuracy scores for a matching item and forecast
+                  horizon. Missing scores remain unavailable.
+                </InfoTip>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((s) => (
+              <tr
+                key={s.series_id}
+                onClick={(e) => {
+                  if (
+                    !(e.target as HTMLElement).closest("a,button") &&
+                    !e.ctrlKey &&
+                    !e.metaKey &&
+                    !e.shiftKey &&
+                    !e.altKey
+                  )
+                    router.push(url(s.series_id));
+                }}
+              >
+                {groupBy && (
+                  <td>
+                    {attributes.get(s.series_id)?.[groupBy] || "Not supplied"}
+                  </td>
+                )}
+                <th scope="row">
+                  <Link className="text-link" href={url(s.series_id)}>
+                    {s.series_id} <span aria-hidden="true">↗</span>
+                  </Link>
+                  <small className="portfolio-period">
+                    {s.dates.length
+                      ? `${formatPeriod(s.dates[0], dataset.frequency)} → ${formatPeriod(s.dates.at(-1), dataset.frequency)}`
+                      : "No forecast periods"}
+                  </small>
+                </th>
+                <td>
+                  <strong>
+                    {number(s.risk.uncertainty_score * 100)}% range width
+                  </strong>
+                  <small className="portfolio-period">
+                    {s.risk.uncertainty_label || "Label not reported"}
+                  </small>
+                </td>
+                <td>
+                  <span
+                    className={`portfolio-direction direction-${s.risk.risk_direction}`}
+                  >
+                    {s.risk.risk_direction === "upside"
+                      ? "↑"
+                      : s.risk.risk_direction === "downside"
+                        ? "↓"
+                        : "↔"}{" "}
+                    {s.risk.risk_direction}
+                  </span>
+                </td>
+                <td>
+                  <strong>
+                    {trustText(s.risk.trust_horizon, dataset.frequency)}
+                  </strong>
+                  <small className="portfolio-period">
+                    {number(s.risk.trust_horizon)} of {number(s.dates.length)}{" "}
+                    forecast periods
+                  </small>
+                </td>
+                <td>{quantity.format(s.total_distribution.percentiles[50])}</td>
+                <td>
+                  {accuracy.data?.horizon === s.dates.length &&
+                  accuracy.data.series.find(
+                    (item) => item.series_id === s.series_id,
+                  )
+                    ? `${number(accuracy.data.series.find((item) => item.series_id === s.series_id)!.wape)}%`
+                    : "Unavailable"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!rows.length && (
+        <div className="health-table-empty">
+          <h2>
+            {forecast.series.length
+              ? "No item match these filters."
+              : "No item returned."}
+          </h2>
+          <p>
+            {forecast.series.length
+              ? "Clear the filters to see every forecast item."
+              : "Choose a forecast with item results to review portfolio risk."}
+          </p>
+        </div>
+      )}
+      <details className="provenance">
+        <summary>Metric definitions</summary>
+        <p>
+          Uncertainty is the supplied sum of (P90 − P10) divided by the sum of
+          |P50| over forecast periods, shown as a percentage. It is the full
+          forecast range width, not a plus/minus interval, and can exceed 100%
+          when the median is near zero. Labels and direction are provided by the
+          source; the page does not apply its own thresholds.
+        </p>
+        <p>
+          Upside means the upper side is wider, downside means the lower side is
+          wider, and balanced means neither side dominates under the source’s
+          rule. These describe uncertainty, not whether sales are rising or
+          falling.
+        </p>
+        <p>
+          Reliable horizon is the supplied number of leading periods whose
+          cumulative relative forecast range width stays within the source’s
+          threshold. Zero means no reliable periods were reported. Time units
+          come from the dataset frequency; unknown frequency stays in periods.
+          Treat this as a model estimate, not a guarantee.
+        </p>
+        <p>
+          Source fields: each forecast item’ risk.uncertainty_score, optional
+          uncertainty_label, risk_direction, and trust_horizon. No portfolio
+          aggregate distribution is computed.
+        </p>
+      </details>
+    </section>
+  );
+}

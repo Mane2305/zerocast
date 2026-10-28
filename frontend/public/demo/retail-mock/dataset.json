@@ -1,0 +1,28 @@
+{
+  "dataset_id": "retail-mock",
+  "additive": true,
+  "name": "Synthetic grocery sales",
+  "frequency": "daily",
+  "holiday_country": null,
+  "series_count": 1,
+  "factor_columns": [],
+  "date_range": {
+    "start": "2026-01-01T00:00:00.000Z",
+    "end": "2026-02-05T00:00:00.000Z"
+  },
+  "series": [
+    {
+      "series_id": "grocery_units",
+      "length": 36,
+      "status": "ready",
+      "start": "2026-01-01T00:00:00.000Z",
+      "end": "2026-02-05T00:00:00.000Z",
+      "missing_count": 0,
+      "issues": []
+    }
+  ],
+  "health": {
+    "ready": true,
+    "checks": []
+  }
+}

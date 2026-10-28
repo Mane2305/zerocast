@@ -1,0 +1,24 @@
+{
+  "dataset_id": "factors-mock",
+  "additive": true,
+  "name": "Historical factor illustration",
+  "frequency": "daily",
+  "series_count": 1,
+  "factor_columns": [
+    "promotion_history",
+    "commodity_index",
+    "temperature_history",
+    "noise_indicator"
+  ],
+  "health": {
+    "ready": true,
+    "checks": []
+  },
+  "series": [
+    {
+      "series_id": "illustrative_sales",
+      "length": 100,
+      "status": "ready"
+    }
+  ]
+}
