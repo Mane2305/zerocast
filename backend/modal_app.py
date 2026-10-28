@@ -30,7 +30,7 @@ WEIGHTS_DIR = "/data/hf"
 UPLOADS_DIR = "/data/uploads"
 APP_NAME = "zerocast"
 TIMEZONE = "Asia/Kolkata"
-VERCEL_ORIGINS = r"https://zerocast(-[a-z0-9-]+)?\.vercel\.app"
+VERCEL_ORIGINS = "https://zerocast(-[a-z0-9-]+)?[.]vercel[.]app"
 
 weights = modal.Volume.from_name("zerocast-weights", create_if_missing=True)
 uploads = modal.Volume.from_name("zerocast-uploads", create_if_missing=True)

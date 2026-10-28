@@ -38,7 +38,7 @@ def test_cors_allows_the_frontend_dev_server(client):
     assert "access-control-allow-origin" not in other.headers
 
 
-VERCEL_ORIGINS = r"https://zerocast(-[a-z0-9-]+)?\.vercel\.app"  # as in modal_app.py
+VERCEL_ORIGINS = "https://zerocast(-[a-z0-9-]+)?[.]vercel[.]app"  # as in modal_app.py
 
 
 def test_cors_origin_regex_allows_vercel_deployments(settings):
