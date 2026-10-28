@@ -323,6 +323,23 @@
 .studio .health-table-scroll .portfolio-period {
   margin-top: 2px;
 }
+.studio .health-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.studio .health-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.studio .health-pagination button {
+  min-height: 36px;
+}
 .studio .forecast-workspace .forecast-context {
   margin: 0 0 16px;
   gap: 12px;
@@ -998,6 +1015,13 @@
   .studio .health-filters > label {
     min-width: 0;
     flex: 1 1 140px;
+  }
+  .studio .health-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .studio .health-pagination > div {
+    justify-content: space-between;
   }
   .studio .health-notice {
     align-items: flex-start;

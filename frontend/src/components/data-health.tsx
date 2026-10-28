@@ -1,6 +1,6 @@
 "use client";
 import { InfoTip } from "./info-tip";
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { formatPeriod } from "@/lib/dates";
 import { findDemo } from "@/lib/demos";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +20,8 @@ import {
   type Dataset,
   type Check,
 } from "@/lib/data-health";
+
+const HEALTH_PAGE_SIZE = 50;
 
 export function DataHealthView({
   id,
@@ -87,7 +89,9 @@ function HealthReport({
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState<"series_id" | "length">("series_id");
   const [descending, setDescending] = useState(false);
+  const [page, setPage] = useState(0);
   const [dismissed, setDismissed] = useState<number[]>([]);
+  const deferredSearch = useDeferredValue(search);
   const number = (v: number) =>
     v.toLocaleString(dataset.holiday_country === "IN" ? "en-IN" : undefined, {
       maximumFractionDigits: 2,
@@ -96,24 +100,54 @@ function HealthReport({
   const checks = dataset.health.checks;
   const selected = tab === "all" ? undefined : checks[Number(tab)];
   const series = dataset.series;
+  const affectedSeries = useMemo(
+    () =>
+      selected?.affected_series ? new Set(selected.affected_series) : undefined,
+    [selected],
+  );
+  const suppliedSeriesIds = useMemo(
+    () => new Set(series?.map((item) => item.series_id) ?? []),
+    [series],
+  );
   // Missing affected_series is not evidence that every series (or none) is affected.
   const linkageMissing = !!selected && selected.affected_series === undefined;
-  const rows = (linkageMissing ? [] : (series ?? []))
-    .filter(
-      (s) =>
-        (!selected || selected.affected_series?.includes(s.series_id)) &&
-        s.series_id.toLocaleLowerCase().includes(search.toLocaleLowerCase()) &&
-        (status === "all" || s.status === status),
-    )
-    .sort(
-      (a, b) =>
-        (sort === "length"
-          ? a.length - b.length
-          : a.series_id.localeCompare(b.series_id)) * (descending ? -1 : 1),
-    );
+  const rows = useMemo(
+    () =>
+      (linkageMissing ? [] : (series ?? []))
+        .filter(
+          (s) =>
+            (!selected || affectedSeries?.has(s.series_id)) &&
+            s.series_id
+              .toLocaleLowerCase()
+              .includes(deferredSearch.toLocaleLowerCase()) &&
+            (status === "all" || s.status === status),
+        )
+        .sort(
+          (a, b) =>
+            (sort === "length"
+              ? a.length - b.length
+              : a.series_id.localeCompare(b.series_id)) * (descending ? -1 : 1),
+        ),
+    [
+      linkageMissing,
+      series,
+      selected,
+      affectedSeries,
+      deferredSearch,
+      status,
+      sort,
+      descending,
+    ],
+  );
+  const pageCount = Math.max(1, Math.ceil(rows.length / HEALTH_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const firstRow = currentPage * HEALTH_PAGE_SIZE;
+  const visibleRows = rows.slice(firstRow, firstRow + HEALTH_PAGE_SIZE);
+  const lastRow = Math.min(firstRow + HEALTH_PAGE_SIZE, rows.length);
   const toggleSort = (column: typeof sort) => {
     setSort(column);
     setDescending(sort === column ? !descending : false);
+    setPage(0);
   };
   function exportRows() {
     // Neutralize spreadsheet formulas even in user-supplied items IDs/issues.
@@ -322,7 +356,7 @@ function HealthReport({
             disabled={!rows.length}
           >
             <Download size={15} />
-            Export visible rows
+            Export filtered items
           </Button>
         </div>
         <div
@@ -368,7 +402,10 @@ function HealthReport({
               aria-selected={tab === t.id}
               aria-controls="health-panel"
               tabIndex={tab === t.id ? 0 : -1}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                setTab(t.id);
+                setPage(0);
+              }}
             >
               {t.label}
               <span>{number(t.count)}</span>
@@ -387,7 +424,10 @@ function HealthReport({
               <input
                 aria-label="Search items"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
                 placeholder="Item ID"
               />
             </label>
@@ -396,7 +436,10 @@ function HealthReport({
               <select
                 aria-label="Status"
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(0);
+                }}
               >
                 <option value="all">All statuses</option>
                 <option value="ready">Ready</option>
@@ -421,7 +464,7 @@ function HealthReport({
                 shown{selected ? ` · ${labels(selected.id)}` : ""}.
               </p>
               {selected?.affected_series?.some(
-                (id) => !series.some((s) => s.series_id === id),
+                (id) => !suppliedSeriesIds.has(id),
               ) && (
                 <p className="health-note">
                   Some affected item have no supplied summary and cannot be
@@ -472,7 +515,7 @@ function HealthReport({
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((s, i) => (
+                    {visibleRows.map((s, i) => (
                       <tr key={`${s.series_id}-${i}`}>
                         <th scope="row">{s.series_id}</th>
                         <td>{number(s.length)}</td>
@@ -508,6 +551,36 @@ function HealthReport({
                   </tbody>
                 </table>
               </div>
+              {rows.length > HEALTH_PAGE_SIZE && (
+                <nav
+                  className="health-pagination"
+                  aria-label="Item table pages"
+                >
+                  <span>
+                    Items {number(firstRow + 1)}–{number(lastRow)} of{" "}
+                    {number(rows.length)}
+                  </span>
+                  <div>
+                    <Button
+                      variant="outline"
+                      disabled={currentPage === 0}
+                      onClick={() => setPage(currentPage - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span aria-live="polite">
+                      Page {number(currentPage + 1)} of {number(pageCount)}
+                    </span>
+                    <Button
+                      variant="outline"
+                      disabled={currentPage >= pageCount - 1}
+                      onClick={() => setPage(currentPage + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </nav>
+              )}
               {!rows.length && (
                 <p className="health-table-empty">
                   No items match. Clear your filters.

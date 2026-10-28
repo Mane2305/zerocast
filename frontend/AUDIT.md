@@ -30,3 +30,10 @@ Harden the F3 upload flow for wide datasets: searchable column pickers, clear se
 - `npm run lint`, `npm run typecheck`, and `npm run build` passed. npm emitted an existing Node engine warning for the Prism mock-server packages (they request Node >=24.18; this environment has 24.14.1) and Next.js warned that it ignores a parent `package-lock.json` outside the repository.
 
 The 100k-row case, RTL, malformed/duplicate headers, API failures during upload, assistive-technology behavior, Lighthouse, and complete before/after screenshots are still unverified. This slice improves wide-file mapping and overflow; it does not satisfy the entire production-readiness brief.
+
+## Phase 2: large Data Health reports
+
+- The Data Health table now renders 50 rows per page, with previous/next controls and a visible range. Search, status, health-check tabs, and sorting return the user to the first page. Export still includes every row matching the current filters.
+- Search uses a deferred value, and affected-item matching uses a memoized set to avoid repeated linear array lookups for every row.
+- Verified with a synthetic 130-item API report: pages contained 50, 50, and 30 rows; searching found the final item; the 320px page had no horizontal overflow.
+- This does not prove the 100k-item case; client filtering and sorting still process the full supplied list.
