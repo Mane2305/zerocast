@@ -397,25 +397,30 @@ function ForecastRunner({
         eyebrow="Forecast · Sales History Only"
         title={<>Forecast</>}
         description={dataset.name}
+        actions={
+          <>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/data-health/${encodeURIComponent(id)}`}>
+                Data health
+              </Link>
+            </Button>
+            {result && !mismatch && (
+              <Button asChild variant="outline" size="sm">
+                <Link
+                  href={`/portfolio/dataset/${encodeURIComponent(id)}?${new URLSearchParams({ job: jobId })}`}
+                >
+                  View portfolio risk
+                </Link>
+              </Button>
+            )}
+          </>
+        }
       />
-      <Link
-        className="text-link"
-        href={`/data-health/${encodeURIComponent(id)}`}
-      >
-        Review data health
-      </Link>
       {result && !mismatch && (
         <>
-          <Button asChild variant="outline">
-            <Link
-              href={`/portfolio/dataset/${encodeURIComponent(id)}?${new URLSearchParams({ job: jobId })}`}
-            >
-              View portfolio risk
-            </Link>
-          </Button>
-          <Hint>
-            Results belong to job {jobId}. Changes to item or horizon apply when
-            you click Run forecast again.
+          <Hint title={`Job ${jobId}`}>
+            Showing your last run. Changes to items or horizon apply when you
+            click Run forecast again.
           </Hint>
           <ForecastResults
             parameters={parameters}

@@ -60,6 +60,8 @@ export function NumberField({
           step={1}
           value={value}
           disabled={disabled}
+          // Inline so older page-level input rules can't shift the digits.
+          style={{ padding: 0, margin: 0, minHeight: 0, height: "100%" }}
           onChange={(e) => onChange(e.target.value)}
           onBlur={() => {
             if (value !== "" && Number.isFinite(n))

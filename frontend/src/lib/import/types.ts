@@ -33,19 +33,51 @@ export function guessMapping(columns: string[]): Mapping {
   const pick = (names: string[]) =>
     columns.find((c) => names.includes(c.toLowerCase().trim())) ?? "";
   const date = pick(["date", "timestamp", "ds", "day"]);
-  const target = pick(["target", "sales", "units", "value", "y"]);
+  // Exact names first, then names like sales_kg, qty_sold, demand_units.
+  const target =
+    pick([
+      "target",
+      "sales",
+      "units",
+      "value",
+      "y",
+      "demand",
+      "quantity",
+      "qty",
+    ]) ||
+    (columns.find(
+      (c) =>
+        c !== date &&
+        /(^|_|\s)(sales|qty|quantity|units|demand|volume|sold)(_|\s|$)/i.test(
+          c,
+        ),
+    ) ??
+      "");
   const ids = columns.filter((c) =>
-    /^(store|store_id|product|product_id|sku|region|plant|series|series_id)$/i.test(
-      c,
+    /^(store|shop|outlet|branch|location|warehouse|city|region|plant|product|item|sku|category|series)(_?id)?$/i.test(
+      c.trim(),
     ),
   );
   return {
     format: date && (!target || !ids.length) ? "wide" : "long",
-    idColumns: ids.length > 1 && !ids.includes("series_id") ? ids : undefined,
+    idColumns:
+      ids.length > 1 && !ids.some((c) => c.toLowerCase() === "series_id")
+        ? ids
+        : undefined,
     wideColumns: columns.filter((c) => c !== date),
-    date: pick(["date", "timestamp", "ds", "day"]),
-    series: pick(["series_id", "series", "product", "sku", "store"]),
-    target: pick(["target", "sales", "units", "value", "y"]),
+    date,
+    series:
+      pick([
+        "series_id",
+        "series",
+        "product",
+        "sku",
+        "item",
+        "store",
+        "shop",
+      ]) ||
+      (ids[0] ?? ""),
+    target,
     factors: [],
     period: "original",
     aggregation: "reject",

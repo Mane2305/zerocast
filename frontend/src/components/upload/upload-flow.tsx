@@ -713,7 +713,7 @@ export function UploadFlow() {
               <div>
                 <h3>Dataset accepted</h3>
                 <p>
-                  {dataset.name} · {dataset.series_count} item · ID:{" "}
+                  {dataset.name} · {dataset.series_count} items · ID:{" "}
                   {dataset.dataset_id}
                 </p>
                 <p>
