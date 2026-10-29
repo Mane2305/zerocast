@@ -56,7 +56,7 @@ export function JobStatus({
         {noun.charAt(0).toUpperCase() + noun.slice(1)} ready
       </p>
     );
-  const progress = job?.progress ?? 0;
+  const progress = Math.round(job?.progress ?? 0);
   return (
     <div className="zc-job" role="status" title={`Job ${jobId}`}>
       <div className="zc-job-line">

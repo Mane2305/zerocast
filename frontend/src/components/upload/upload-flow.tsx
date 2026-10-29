@@ -264,7 +264,7 @@ export function UploadFlow() {
         abort.current.signal,
         (value) => {
           if (ticket === operation.current) {
-            setProgress(value);
+            setProgress(Math.round(value));
             if (value === 100)
               setStatus(
                 "File transferred. Waiting for the API’s data health check…",

@@ -120,7 +120,7 @@ export function PortfolioJob({ id, jobId }: { id: string; jobId: string }) {
             "Portfolio is available after a forecast completes."
           }
         />
-        <p>Progress: {job.data.progress}%</p>
+        <p>Progress: {Math.round(job.data.progress)}%</p>
         <div className="download-actions">
           <Button asChild>
             <Link
