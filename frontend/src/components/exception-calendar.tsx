@@ -1,6 +1,7 @@
 "use client";
 import { Card } from "@/components/ui/layout";
-import { CHART } from "@/lib/chart-theme";
+import { CHART, chartStructure } from "@/lib/chart-theme";
+import { useTheme } from "next-themes";
 import { Select } from "./ui/select";
 import { useState } from "react";
 import dynamic from "next/dynamic";
@@ -30,6 +31,8 @@ export function ExceptionCalendar({
 }) {
   const preferences = useDatasetPreferences(id);
   const [pickedYear, setYear] = useState("");
+  const dark = useTheme().resolvedTheme === "dark";
+  const surface = chartStructure(dark).surface;
   const query = useQuery({
     queryKey: ["exception-accuracy", id, saved, preferences.accuracyJob],
     queryFn: async ({ signal }) => {
@@ -103,10 +106,17 @@ export function ExceptionCalendar({
       orient: "horizontal",
       left: "center",
       bottom: 0,
+      itemGap: 20,
+      itemSymbol: "roundRect",
       pieces: [
-        { value: -1, label: "Demand drop", color: CHART.bad },
-        { value: 0, label: "Inside range", color: CHART.neutral },
-        { value: 1, label: "Demand spike", color: CHART.good },
+        { value: -1, label: "Below range (drop)", color: CHART.bad },
+        // Expected days stay quiet so the exceptions stand out.
+        {
+          value: 0,
+          label: "Within range",
+          color: dark ? "#29312d" : "#e3e8e5",
+        },
+        { value: 1, label: "Above range (spike)", color: CHART.good },
       ],
     },
     ...(daily
@@ -121,7 +131,16 @@ export function ExceptionCalendar({
             yearLabel: { show: false },
           },
           series: [
-            { type: "heatmap", coordinateSystem: "calendar", data: points },
+            {
+              type: "heatmap",
+              coordinateSystem: "calendar",
+              data: points,
+              itemStyle: {
+                borderColor: surface,
+                borderWidth: 2,
+                borderRadius: 3,
+              },
+            },
           ],
         }
       : {

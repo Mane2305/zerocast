@@ -12,7 +12,6 @@ const Chart = dynamic(() => import("./studio-chart"), {
 
 const GOOD = CHART.good;
 const BAD = CHART.bad;
-const NEUTRAL = CHART.neutral;
 
 /** One horizontal bar per driver, so drivers compare at a glance. */
 function barOption(
@@ -20,7 +19,7 @@ function barOption(
   axisName: string,
 ): EChartsOption {
   return {
-    grid: { left: 8, right: 56, top: 8, bottom: 28, containLabel: true },
+    grid: { left: 20, right: 56, top: 8, bottom: 28, containLabel: true },
     tooltip: {
       trigger: "item",
       renderMode: "richText",
@@ -72,7 +71,7 @@ export function DriverCharts({ result }: { result: FactorResult }) {
     .map((f) => ({
       name: f.factor,
       value: f.related.effect!,
-      color: NEUTRAL,
+      color: CHART.info,
       note: `Standardized effect at lag ${f.related.best_lag ?? "?"}`,
     }));
   const lift = result.factors

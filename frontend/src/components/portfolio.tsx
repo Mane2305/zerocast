@@ -11,7 +11,7 @@ import { InfoTip } from "./info-tip";
 import { formatPeriod } from "@/lib/dates";
 import { findDemo } from "@/lib/demos";
 import { useDeferredValue, useMemo, useState } from "react";
-import { PortfolioBubbles } from "./portfolio-bubbles";
+import { PortfolioRanges } from "./portfolio-ranges";
 import { validAccuracy } from "@/lib/accuracy";
 import { getAccuracyJob } from "@/lib/api/accuracy";
 import { useDatasetPreferences } from "@/lib/preferences";
@@ -465,7 +465,7 @@ function PortfolioTable({
       <Hint role="status">
         {number(rows.length)} of {number(forecast.series.length)} items shown.
       </Hint>
-      <PortfolioBubbles
+      <PortfolioRanges
         rows={rows}
         additive={dataset.additive}
         unit={dataset.unit || findDemo(id)?.unit}

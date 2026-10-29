@@ -52,6 +52,16 @@ export function chartStructure(dark: boolean): Structural {
 export const primaryFor = (dark: boolean) =>
   dark ? CHART.primaryDark : CHART.primary;
 
+/**
+ * The page's real font stack (next/font gives Inter a generated family name).
+ * ECharts measures text with this string, so a CSS variable here would make it
+ * measure a fallback font and overlap or clip the wider Inter labels.
+ */
+function bodyFont() {
+  if (typeof document === "undefined") return "system-ui, sans-serif";
+  return getComputedStyle(document.body).fontFamily || "system-ui, sans-serif";
+}
+
 let registered = false;
 export function registerChartThemes() {
   if (registered) return;
@@ -76,12 +86,19 @@ export function registerChartThemes() {
       backgroundColor: "transparent",
       textStyle: {
         color: s.text,
-        fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
+        fontFamily: bodyFont(),
       },
-      legend: { textStyle: { color: s.text, fontSize: 12 } },
+      legend: {
+        itemGap: 20,
+        itemWidth: 12,
+        itemHeight: 12,
+        textStyle: { color: s.text, fontSize: 12 },
+      },
       tooltip: {
         backgroundColor: s.surface,
         borderColor: s.axis,
+        borderRadius: 8,
+        padding: [8, 12],
         textStyle: { color: s.text, fontSize: 12 },
       },
       categoryAxis: axis,
@@ -93,14 +110,33 @@ export function registerChartThemes() {
         monthLabel: { color: s.text },
       },
       visualMap: { textStyle: { color: s.text } },
+      // Theme values are merged into every slider, so no chart falls back
+      // to ECharts' default blue-purple handles.
       dataZoom: {
         borderColor: s.axis,
+        borderRadius: 4,
+        backgroundColor: "transparent",
         textStyle: { color: s.subtle },
-        fillerColor: dark ? "rgba(141,215,180,0.15)" : "rgba(47,125,91,0.12)",
-        handleStyle: { color: s.surface, borderColor: s.axis },
+        fillerColor: dark ? "rgba(95,212,160,0.14)" : "rgba(31,122,87,0.10)",
+        handleIcon: "path://M2,0 h2 v12 h-2 z",
+        handleSize: "70%",
+        handleStyle: { color: primaryFor(dark), borderColor: primaryFor(dark) },
+        moveHandleSize: 5,
+        moveHandleStyle: { color: s.axis, opacity: 1 },
         dataBackground: {
-          lineStyle: { color: s.axis },
-          areaStyle: { color: s.grid },
+          lineStyle: { color: s.axis, width: 1 },
+          areaStyle: { color: s.grid, opacity: 1 },
+        },
+        selectedDataBackground: {
+          lineStyle: { color: primaryFor(dark), width: 1 },
+          areaStyle: { color: primaryFor(dark), opacity: 0.12 },
+        },
+        emphasis: {
+          handleStyle: { borderColor: primaryFor(dark) },
+          moveHandleStyle: { color: primaryFor(dark) },
+        },
+        brushStyle: {
+          color: dark ? "rgba(95,212,160,0.2)" : "rgba(31,122,87,0.15)",
         },
       },
     });

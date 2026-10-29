@@ -1,6 +1,11 @@
 "use client";
 import { Disclosure } from "@/components/ui/controls";
-import { primaryFor, registerChartThemes, themeName } from "@/lib/chart-theme";
+import {
+  CHART,
+  primaryFor,
+  registerChartThemes,
+  themeName,
+} from "@/lib/chart-theme";
 import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import * as echarts from "echarts/core";
@@ -49,15 +54,16 @@ export default function CapacityChart({
       xAxis: {
         type: "category",
         data: dates.map((date) => formatPeriod(date, frequency)),
-        axisLabel: { hideOverlap: true, color },
+        axisLabel: { hideOverlap: true },
       },
       yAxis: {
         type: "value",
         min: 0,
         max: 100,
-        axisLabel: { formatter: "{value}%", color },
+        axisLabel: { formatter: "{value}%" },
       },
       tooltip: { trigger: "axis", renderMode: "richText" },
+
       series: [
         {
           type: "bar",
@@ -65,8 +71,17 @@ export default function CapacityChart({
           data: bounds.map((value) => ({
             value: value[1],
             tooltip: { formatter: probabilityText(value) },
+            // Colour carries the severity: calm, watch, act.
+            itemStyle: {
+              color:
+                value[1] >= 50
+                  ? CHART.bad
+                  : value[1] >= 20
+                    ? CHART.warning
+                    : color,
+              borderRadius: [3, 3, 0, 0],
+            },
           })),
-          itemStyle: { color },
           barMaxWidth: 18,
         },
       ],

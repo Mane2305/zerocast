@@ -124,7 +124,10 @@ export default function ForecastChart({
           ];
     });
     const format = valueFormatter({ country, unit, currency });
-    const startValue = Math.max(0, dates.length - 90);
+    // Open on about three horizons of history so the forecast gets roughly a
+    // quarter of the width; the slider still reaches the full history.
+    const shownHistory = Math.min(90, Math.max(24, 3 * series.dates.length));
+    const startValue = Math.max(0, dates.length - shownHistory);
     const endValue = dates.length + series.dates.length - 1;
     const pad = (values: (number | null)[]) => [
       ...dates.map(() => null),

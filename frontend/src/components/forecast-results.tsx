@@ -326,7 +326,7 @@ export function ForecastResults({
         <InfoTip label="Chart data and display">
           {historyNote ||
             (history
-              ? "Starts at the latest 90 history points; use the slider for full supplied history. Blanks remain gaps."
+              ? "Opens on about three forecast horizons of history; use the slider for the full supplied history. Blanks remain gaps."
               : "History is unavailable.")}{" "}
           Last year uses the supplied seasonal alignment.{" "}
           {countUnits(unit)
