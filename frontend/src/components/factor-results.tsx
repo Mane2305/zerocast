@@ -1,9 +1,10 @@
 "use client";
-import { SortHeader } from "@/components/ui/table";
+import { ChevronDown } from "lucide-react";
+import { SortHeader, TableContainer } from "@/components/ui/table";
 import { Disclosure } from "@/components/ui/controls";
-import { Callout, Hint } from "@/components/ui/feedback";
+import { Badge, Callout, Hint, type Tone } from "@/components/ui/feedback";
 import { Select } from "./ui/select";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DriverCharts } from "./driver-charts";
 import {
@@ -13,6 +14,13 @@ import {
   type FactorResult,
   type Factor,
 } from "@/lib/factors";
+const VERDICT_TONE: Record<Factor["verdict"], Tone> = {
+  use_it: "success",
+  real_driver_yug_cannot_use: "info",
+  helps_yug_unclear_link: "warning",
+  probably_drop: "neutral",
+};
+
 export function FactorResults({
   result,
   country,
@@ -24,15 +32,16 @@ export function FactorResults({
 }) {
   const [search, setSearch] = useState(""),
     [verdict, setVerdict] = useState("all"),
-    [descending, setDescending] = useState(false);
+    [descending, setDescending] = useState(false),
+    [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const number = (v: number | undefined) =>
     v === undefined
       ? "Not reported"
-      : new Intl.NumberFormat(country === "IN" ? "en-IN" : undefined, {
+      : new Intl.NumberFormat(country === "IN" ? "en-IN" : "en-US", {
           maximumSignificantDigits: 4,
         }).format(v);
   const signed = (v: number) =>
-    new Intl.NumberFormat(country === "IN" ? "en-IN" : undefined, {
+    new Intl.NumberFormat(country === "IN" ? "en-IN" : "en-US", {
       maximumFractionDigits: 1,
       signDisplay: "always",
     }).format(v);
@@ -53,59 +62,50 @@ export function FactorResults({
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  function statistics(f: Factor) {
+  function details(f: Factor) {
     return (
-      <Disclosure
-        className="factor-evidence"
-        summary={<>Statistical details</>}
-      >
-        <dl>
-          <div>
-            <dt>Best lag (periods)</dt>
-            <dd>{number(f.related.best_lag)}</dd>
-          </div>
-          <div>
+      <div className="factor-details">
+        <section>
+          <h4>Historical link</h4>
+          <dl>
+            <dt>Best lag</dt>
+            <dd>
+              {f.related.best_lag === undefined
+                ? "Not reported"
+                : `${number(f.related.best_lag)} ${f.related.best_lag === 1 ? "period" : "periods"}`}
+            </dd>
             <dt>Standardised effect</dt>
             <dd>{number(f.related.effect)}</dd>
-          </div>
-          <div>
             <dt>p-value</dt>
-            <dd>{number(f.related.p_value)}</dd>
-          </div>
-        </dl>
-        <Hint>
-          Historical association after detrending and deseasonalising.
-          Association does not establish causation.
-        </Hint>
-      </Disclosure>
-    );
-  }
-  function backtest(f: Factor) {
-    return (
-      <Disclosure className="factor-evidence" summary={<>Backtest details</>}>
-        <dl>
-          <div>
+            <dd>
+              {f.related.p_value === 0 ? "< 0.0001" : number(f.related.p_value)}
+            </dd>
+          </dl>
+          <Hint>
+            After removing trend and seasonality. Association is not causation.
+          </Hint>
+        </section>
+        <section>
+          <h4>Backtest</h4>
+          <dl>
             <dt>Sales-only error (WQL)</dt>
             <dd>{number(result.baseline_wql)}</dd>
-          </div>
-          <div>
-            <dt>With-driver error (WQL)</dt>
+            <dt>With this driver (WQL)</dt>
             <dd>{number(f.helps_yug.wql_with_factor)}</dd>
-          </div>
-          <div>
-            <dt>Reported interval, lower</dt>
-            <dd>{number(f.helps_yug.ci_low)}</dd>
-          </div>
-          <div>
-            <dt>Reported interval, upper</dt>
-            <dd>{number(f.helps_yug.ci_high)}</dd>
-          </div>
-        </dl>
-        <Hint>
-          Lower backtest error is better. Interval scale and confidence level
-          were not specified by the source.
-        </Hint>
-      </Disclosure>
+            <dt>Reported interval</dt>
+            <dd>
+              {number(f.helps_yug.ci_low)} to {number(f.helps_yug.ci_high)}
+            </dd>
+          </dl>
+          <Hint>Lower error is better. Interval scale is not specified.</Hint>
+        </section>
+        {f.explanation && (
+          <section>
+            <h4>Source note</h4>
+            <p>{f.explanation}</p>
+          </section>
+        )}
+      </div>
     );
   }
   return (
@@ -172,12 +172,7 @@ export function FactorResults({
       <Hint role="status">
         {rows.length} of {result.factors.length} drivers shown.
       </Hint>
-      <div
-        className="health-table-scroll factor-table"
-        role="region"
-        aria-label="Two-lens driver results"
-        tabIndex={0}
-      >
+      <TableContainer label="Two-lens driver results" className="factor-table">
         <table>
           <caption className="sr-only">
             Historical association and forecast backtest evidence by driver
@@ -192,55 +187,119 @@ export function FactorResults({
               />
               <th>Related to sales?</th>
               <th>Forecast lift</th>
-              <th>What it means</th>
+              <th>Verdict</th>
+              <th>
+                <span className="sr-only">Details</span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((f) => (
-              <tr key={f.factor}>
-                <th scope="row">{f.factor}</th>
-                <td>
-                  <strong>
-                    {evidenceLabel(
-                      f.related.is_related,
-                      "Related",
-                      "No detected relationship",
-                    )}
-                  </strong>
-                  {statistics(f)}
-                </td>
-                <td>
-                  <strong>
-                    {evidenceLabel(
-                      f.helps_yug.helps,
-                      "Helped in this backtest",
-                      "No demonstrated improvement",
-                    )}
-                  </strong>
-                  <p
-                    className={
-                      f.helps_yug.change_pct !== undefined &&
-                      f.helps_yug.change_pct < 0
-                        ? "factor-gain"
-                        : "health-note"
-                    }
-                  >
-                    {f.helps_yug.change_pct === undefined
-                      ? "Error change: not reported"
-                      : `Error change: ${signed(f.helps_yug.change_pct)}%`}
-                  </p>
-                  {backtest(f)}
-                </td>
-                <td>
-                  <strong>{verdicts[f.verdict].label}</strong>
-                  <p>{verdicts[f.verdict].meaning}</p>
-                  {f.explanation && <Hint>Source note: {f.explanation}</Hint>}
-                </td>
-              </tr>
-            ))}
+            {rows.map((f) => {
+              const open = expanded.has(f.factor);
+              const change = f.helps_yug.change_pct;
+              return (
+                <Fragment key={f.factor}>
+                  <tr className={open ? "is-open" : undefined}>
+                    <th scope="row">{f.factor}</th>
+                    <td>
+                      <Badge
+                        tone={
+                          f.related.is_related === true
+                            ? "success"
+                            : f.related.is_related === false
+                              ? "neutral"
+                              : "neutral"
+                        }
+                      >
+                        {evidenceLabel(
+                          f.related.is_related,
+                          "Related",
+                          "No link found",
+                        )}
+                      </Badge>
+                      {f.related.effect !== undefined && (
+                        <span className="factor-sub">
+                          effect {number(f.related.effect)}
+                          {f.related.best_lag !== undefined &&
+                            ` · lag ${number(f.related.best_lag)}`}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <Badge
+                        tone={
+                          f.helps_yug.helps === true ? "success" : "neutral"
+                        }
+                      >
+                        {evidenceLabel(
+                          f.helps_yug.helps,
+                          "Improves forecast",
+                          "No proven gain",
+                        )}
+                      </Badge>
+                      <span
+                        className={
+                          "factor-sub factor-change " +
+                          (change === undefined
+                            ? ""
+                            : change < 0
+                              ? "is-better"
+                              : "is-worse")
+                        }
+                      >
+                        {change === undefined
+                          ? "error change not reported"
+                          : `${signed(change)}% error${
+                              f.helps_yug.helps === true
+                                ? ""
+                                : change < 0
+                                  ? " · within noise"
+                                  : ""
+                            }`}
+                      </span>
+                    </td>
+                    <td>
+                      <Badge tone={VERDICT_TONE[f.verdict]}>
+                        {verdicts[f.verdict].label}
+                      </Badge>
+                      <span className="factor-advice">
+                        {verdicts[f.verdict].meaning}
+                      </span>
+                    </td>
+                    <td className="factor-toggle">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-expanded={open}
+                        aria-label={`${open ? "Hide" : "Show"} details for ${f.factor}`}
+                        onClick={() =>
+                          setExpanded((current) => {
+                            const next = new Set(current);
+                            if (next.has(f.factor)) next.delete(f.factor);
+                            else next.add(f.factor);
+                            return next;
+                          })
+                        }
+                      >
+                        Details
+                        <ChevronDown
+                          size={15}
+                          className={open ? "rotate-180" : undefined}
+                        />
+                      </Button>
+                    </td>
+                  </tr>
+                  {open && (
+                    <tr className="factor-details-row">
+                      <td colSpan={5}>{details(f)}</td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
-      </div>
+      </TableContainer>
       {!rows.length && (
         <Callout tone="neutral">
           <h3>

@@ -639,3 +639,91 @@
   color: var(--foreground);
   border-color: var(--border-strong);
 }
+
+/* ---------- Driver evidence table ---------- */
+.factor-table td,
+.factor-table th {
+  vertical-align: middle;
+}
+.factor-table tbody th {
+  font-size: 14px;
+  text-transform: capitalize;
+}
+.factor-sub {
+  display: block;
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.factor-change.is-better {
+  color: #1f6b4b;
+}
+.factor-change.is-worse {
+  color: #a3362c;
+}
+.dark .factor-change.is-better {
+  color: #8dd7b4;
+}
+.dark .factor-change.is-worse {
+  color: #ffa99c;
+}
+.factor-advice {
+  display: block;
+  max-width: 360px;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+.factor-toggle {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+}
+.factor-toggle svg {
+  transition: transform 0.15s;
+}
+.factor-toggle .rotate-180 {
+  transform: rotate(180deg);
+}
+.factor-table tr.is-open > * {
+  border-bottom-color: transparent;
+}
+.factor-details-row > td {
+  padding-top: 0;
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+.factor-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  padding: 14px 4px 6px;
+}
+.factor-details h4 {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+}
+.factor-details dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 13px;
+}
+.factor-details dt {
+  color: var(--muted-foreground);
+}
+.factor-details dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.factor-details p {
+  margin: 0;
+  font-size: 13px;
+}
