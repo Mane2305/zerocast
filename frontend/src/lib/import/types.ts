@@ -29,55 +29,15 @@ export type Prepared = {
   collapsed: number;
   sample: Record<string, string>[];
 };
-export function guessMapping(columns: string[]): Mapping {
-  const pick = (names: string[]) =>
-    columns.find((c) => names.includes(c.toLowerCase().trim())) ?? "";
-  const date = pick(["date", "timestamp", "ds", "day"]);
-  // Exact names first, then names like sales_kg, qty_sold, demand_units.
-  const target =
-    pick([
-      "target",
-      "sales",
-      "units",
-      "value",
-      "y",
-      "demand",
-      "quantity",
-      "qty",
-    ]) ||
-    (columns.find(
-      (c) =>
-        c !== date &&
-        /(^|_|\s)(sales|qty|quantity|units|demand|volume|sold)(_|\s|$)/i.test(
-          c,
-        ),
-    ) ??
-      "");
-  const ids = columns.filter((c) =>
-    /^(store|shop|outlet|branch|location|warehouse|city|region|plant|product|item|sku|category|series)(_?id)?$/i.test(
-      c.trim(),
-    ),
-  );
+/** A blank mapping: the user chooses every column; nothing is guessed. */
+export function emptyMapping(): Mapping {
   return {
-    format: date && (!target || !ids.length) ? "wide" : "long",
-    idColumns:
-      ids.length > 1 && !ids.some((c) => c.toLowerCase() === "series_id")
-        ? ids
-        : undefined,
-    wideColumns: columns.filter((c) => c !== date),
-    date,
-    series:
-      pick([
-        "series_id",
-        "series",
-        "product",
-        "sku",
-        "item",
-        "store",
-        "shop",
-      ]) ||
-      (ids[0] ?? ""),
-    target,
+    format: "long",
+    idColumns: undefined,
+    wideColumns: [],
+    date: "",
+    series: "",
+    target: "",
     factors: [],
     period: "original",
     aggregation: "reject",
@@ -96,6 +56,11 @@ export function mappingError(mapping: Mapping, columns: string[]) {
       ? "Choose sum or average when grouping dates into periods."
       : null;
   }
+  if (!mapping.date) return "Choose the date column.";
+  if (!mapping.idColumns?.length && !mapping.series)
+    return "Choose the item ID column, or two or more hierarchy columns.";
+  if (!mapping.target)
+    return "Choose the target column (the value to forecast).";
   const ids = mapping.idColumns?.length ? mapping.idColumns : [mapping.series];
   if (ids.some((id) => ["date", "target"].includes(id.toLowerCase())))
     return "Rename reserved ID columns before mapping them.";

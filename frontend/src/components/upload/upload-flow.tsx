@@ -18,7 +18,7 @@ import { Select } from "@/components/ui/select";
 import {
   fileError,
   fileSize,
-  guessMapping,
+  emptyMapping,
   mappingError,
   type Inspection,
   type Mapping,
@@ -106,7 +106,7 @@ function Preview({ rows }: { rows: Record<string, string>[] }) {
 export function UploadFlow() {
   const [file, setFile] = useState<File>();
   const [inspection, setInspection] = useState<Inspection>();
-  const [mapping, setMapping] = useState<Mapping>(guessMapping([]));
+  const [mapping, setMapping] = useState<Mapping>(emptyMapping());
   const [prepared, setPrepared] = useState<Prepared>();
   const [name, setName] = useState("");
   const [country, setCountry] = useState("");
@@ -191,7 +191,7 @@ export function UploadFlow() {
         if (ticket !== operation.current) return;
         setInspection(result);
         setSheet(result.sheet);
-        setMapping(guessMapping(result.columns));
+        setMapping(emptyMapping());
         setStatus(
           "File checked locally. Confirm the suggested mappings below.",
         );
@@ -442,8 +442,8 @@ export function UploadFlow() {
             </div>
           )}
           <p className="muted">
-            Confirm the suggestions. Unselected columns are left out of the
-            prepared file.
+            Choose the layout, then which column holds each role. Columns you
+            don’t choose are left out of the prepared file.
           </p>
           <fieldset disabled={!!busy || sheet !== inspection.sheet}>
             <div className="upload-v2-fields">
@@ -528,6 +528,11 @@ export function UploadFlow() {
                   selected={mapping.idColumns || []}
                   onChange={(idColumns) => updateMapping({ idColumns })}
                 />
+                <p className="field-help">
+                  Use one Item ID column above, or pick two or more hierarchy
+                  columns here (e.g. shop + product); hierarchy columns are
+                  combined into one item ID such as shop_01|kaju-katli.
+                </p>
               </div>
             )}
             <p className="field-help">

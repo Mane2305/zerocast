@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   fileError,
-  guessMapping,
+  emptyMapping,
   mappingError,
 } from "../src/lib/import/types.ts";
 
@@ -20,7 +20,12 @@ test("mapping rejects duplicated roles, unknown columns, excessive factors and u
     "target",
     ...Array.from({ length: 11 }, (_, i) => `factor_${i}`),
   ];
-  const mapping = guessMapping(columns);
+  const mapping = {
+    ...emptyMapping(),
+    date: "date",
+    series: "series_id",
+    target: "target",
+  };
   assert.equal(mappingError(mapping, columns), null);
   assert.match(
     mappingError({ ...mapping, target: "date" }, columns)!,

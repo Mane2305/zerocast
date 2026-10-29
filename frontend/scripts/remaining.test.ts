@@ -1,22 +1,36 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  guessMapping,
+  emptyMapping,
   mappingError,
   fileError,
 } from "../src/lib/import/types.ts";
 import { publishedSheetUrl } from "../src/lib/import/sheets.ts";
-test("wide and long hierarchy detection stays explicit and validates selected roles", () => {
-  const wide = guessMapping(["date", "A", "B"]);
-  assert.equal(wide.format, "wide");
+test("mapping starts empty and validates the roles the user selects", () => {
+  const blank = emptyMapping();
+  assert.equal(blank.date, "");
+  assert.match(mappingError(blank, ["date", "A"])!, /date column/);
+  assert.match(
+    mappingError({ ...blank, date: "date" }, ["date", "A"])!,
+    /item ID column/,
+  );
+  const wide = {
+    ...blank,
+    format: "wide" as const,
+    date: "date",
+    wideColumns: ["A", "B"],
+  };
   assert.equal(mappingError(wide, ["date", "A", "B"]), null);
   assert.match(
     mappingError({ ...wide, wideColumns: [] }, ["date", "A", "B"])!,
     /at least one/,
   );
-  const long = guessMapping(["date", "store", "product", "target"]);
-  assert.equal(long.format, "long");
-  assert.deepEqual(long.idColumns, ["store", "product"]);
+  const long = {
+    ...blank,
+    date: "date",
+    idColumns: ["store", "product"],
+    target: "target",
+  };
   assert.equal(
     mappingError(long, ["date", "store", "product", "target"]),
     null,
