@@ -1,3 +1,4 @@
+import { chooseOption } from "./lib/choose-option.mjs";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -114,9 +115,9 @@ try {
   await expect(page.getByLabel("Date column", { exact: true })).toHaveValue(
     "date",
   );
-  await expect(
-    page.getByLabel("Item ID column", { exact: true }),
-  ).toHaveValue("series_id");
+  await expect(page.getByLabel("Item ID column", { exact: true })).toHaveValue(
+    "series_id",
+  );
   await page
     .getByRole("group", { name: "driver columns" })
     .getByRole("checkbox", { name: "promo", exact: true })
@@ -143,9 +144,7 @@ try {
   await page
     .getByLabel("Dataset name", { exact: true })
     .fill("Upload smoke test");
-  await page
-    .getByLabel("Holiday calendar country (optional)")
-    .selectOption("IN");
+  await chooseOption(page, "Holiday calendar (optional)", "IN");
   await page.getByRole("button", { name: "Upload prepared file" }).click();
   await expect(
     page.getByRole("heading", { name: "Dataset accepted" }),
@@ -173,9 +172,7 @@ try {
       "2 extra rows share a date and series",
     );
     await shot("duplicate-error");
-    await page
-      .getByLabel("Rows sharing a period and item")
-      .selectOption("sum");
+    await chooseOption(page, "Rows sharing a period and item", "sum");
     await page
       .getByRole("group", { name: "driver columns" })
       .getByRole("checkbox", { name: "promo", exact: true })
@@ -211,38 +208,42 @@ try {
         message,
       );
     }
-    await page
-      .getByLabel("Choose data file")
-      .setInputFiles({
-        name: "bad.txt",
-        mimeType: "text/plain",
-        buffer: Buffer.from("invalid"),
-      });
+    await page.getByLabel("Choose data file").setInputFiles({
+      name: "bad.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("invalid"),
+    });
     await expect(page.locator("main").getByRole("alert")).toContainText(
       "Choose a CSV",
     );
-    await page
-      .getByLabel("Choose data file")
-      .setInputFiles({
-        name: "empty.csv",
-        mimeType: "text/csv",
-        buffer: Buffer.alloc(0),
-      });
+    await page.getByLabel("Choose data file").setInputFiles({
+      name: "empty.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.alloc(0),
+    });
     await expect(page.locator("main").getByRole("alert")).toContainText(
       "file is empty",
     );
-    await writeFile("test-fixtures/hourly.csv", "date,series_id,target\n" + dates.flatMap(d => [`${d}T00:00:00.123,001,1`, `${d}T12:00:00,001,2`]).join("\n"));
+    await writeFile(
+      "test-fixtures/hourly.csv",
+      "date,series_id,target\n" +
+        dates
+          .flatMap((d) => [`${d}T00:00:00.123,001,1`, `${d}T12:00:00,001,2`])
+          .join("\n"),
+    );
     await check("test-fixtures/hourly.csv");
-    await page.getByRole("combobox", {name: "Time period", exact: true}).selectOption("day");
-    await page.getByLabel("Rows sharing a period and item").selectOption("sum");
+    await chooseOption(page, "Time period", "day");
+    await chooseOption(page, "Rows sharing a period and item", "sum");
     await convert();
-    await expect(review.locator("tbody tr").first().locator("td").nth(2)).toHaveText("3");
+    await expect(
+      review.locator("tbody tr").first().locator("td").nth(2),
+    ).toHaveText("3");
     await check("test-fixtures/workbook.xlsx");
     await convert();
     await expect(review.locator("tbody tr").first()).toContainText(
       "2026-01-01",
     );
-    await page.getByLabel("Worksheet", { exact: true }).selectOption("Plant");
+    await chooseOption(page, "Worksheet", "Plant");
     await expect(
       page.getByRole("button", { name: "Run conversion", exact: true }),
     ).toBeDisabled();
@@ -280,13 +281,23 @@ try {
       "server rejected this dataset",
     );
     await page.unroute("**/datasets");
-    await page.route("**/datasets", route => route.fulfill({status: 201, contentType: "application/json", body: "not valid JSON"}));
-    await page.getByRole("button", {name: "Upload prepared file"}).click();
-    await expect(page.locator("main").getByRole("alert")).toContainText("unreadable response");
+    await page.route("**/datasets", (route) =>
+      route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: "not valid JSON",
+      }),
+    );
+    await page.getByRole("button", { name: "Upload prepared file" }).click();
+    await expect(page.locator("main").getByRole("alert")).toContainText(
+      "unreadable response",
+    );
     await page.unroute("**/datasets");
-    await page.route("**/datasets", route => route.fulfill({status: 204}));
-    await page.getByRole("button", {name: "Upload prepared file"}).click();
-    await expect(page.locator("main").getByRole("alert")).toContainText("unexpected response");
+    await page.route("**/datasets", (route) => route.fulfill({ status: 204 }));
+    await page.getByRole("button", { name: "Upload prepared file" }).click();
+    await expect(page.locator("main").getByRole("alert")).toContainText(
+      "unexpected response",
+    );
     await page.unroute("**/datasets");
     await page.route("**/datasets", async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -325,9 +336,7 @@ try {
       assert(bytes >= 100_000_000);
       const start = Date.now();
       await check("test-fixtures/100mb.csv");
-      await page
-        .getByLabel("Rows sharing a period and item")
-        .selectOption("sum");
+      await chooseOption(page, "Rows sharing a period and item", "sum");
       await convert();
       await expect(
         review.locator("tbody tr").first().locator("td").nth(2),

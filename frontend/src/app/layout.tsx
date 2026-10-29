@@ -7,6 +7,7 @@ import "./studio.css";
 import "./accuracy.css";
 import "./remaining.css";
 import "./ui.css";
+import "./components.css";
 
 const inter = Inter({
   subsets: ["latin"],

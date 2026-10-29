@@ -1,14 +1,22 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/ui/layout";
+import { Hint } from "@/components/ui/feedback";
+import { StatCard, StatGrid } from "@/components/ui/stat";
 import { ModelDeployment } from "@/components/model-deployment";
 export const metadata = { title: "Model & method · ZeroCast" };
 export default function UnderTheHood() {
   return (
     <div className="health-page model-page">
-      <p className="eyebrow">MODEL & METHOD</p>
-      <h1 className="forecast-title">Model &amp; method</h1>
-      <p>
-        Model provenance, live API reports and practical limits in one place.
-      </p>
+      <PageHeader
+        eyebrow="Model & Method"
+        title={<>Model &amp; method</>}
+        description={
+          <>
+            Model provenance, live API reports and practical limits in one
+            place.
+          </>
+        }
+      />
       <section className="model-reference" aria-labelledby="reference-heading">
         <div>
           <p className="eyebrow">PUBLISHED MODEL REFERENCE</p>
@@ -18,24 +26,24 @@ export default function UnderTheHood() {
             without training a model for each dataset. Deployment identity and
             readiness are reported separately below.
           </p>
-          <div className="health-stats">
-            <article>
-              <span>Published parameters</span>
-              <strong>271.8M</strong>
-              <small>271,845,260 parameters</small>
-            </article>
-            <article>
-              <span>Published context</span>
-              <strong>2,048</strong>
-              <small>Historical points per context</small>
-            </article>
-            <article>
-              <span>Native output</span>
-              <strong>P10–P90</strong>
-              <small>Nine forecast levels · 64-period blocks</small>
-            </article>
-          </div>
-          <p className="health-note">
+          <StatGrid>
+            <StatCard
+              label="Published parameters"
+              value={<>271.8M</>}
+              hint={<>271,845,260 parameters</>}
+            />
+            <StatCard
+              label="Published context"
+              value={<>2,048</>}
+              hint={<>Historical points per context</>}
+            />
+            <StatCard
+              label="Native output"
+              value={<>P10–P90</>}
+              hint={<>Nine forecast levels · 64-period blocks</>}
+            />
+          </StatGrid>
+          <Hint>
             Reference facts from the{" "}
             <a
               className="text-link"
@@ -46,7 +54,7 @@ export default function UnderTheHood() {
               official model card ↗
             </a>
             . They are not fallback deployment values.
-          </p>
+          </Hint>
         </div>
       </section>
       <ModelDeployment />
@@ -85,14 +93,14 @@ export default function UnderTheHood() {
           Forecast ranges are estimates; data quality and changing conditions
           can reduce reliability.
         </p>
-        <p className="health-note">
+        <Hint>
           Horizon totals come from sample-path distributions. Per-period
           quantiles are never added to create totals. The model worker processes
           jobs in a queue, so wait time may exceed a single model call. The
           retail and manufacturing demos show precomputed results from real
           historical data and do not start a new model run. The cement driver
           demo also shows saved statistical and model backtest results.
-        </p>
+        </Hint>
       </section>
       <section className="model-license" aria-labelledby="license-heading">
         <p className="eyebrow">ATTRIBUTION & LICENCE</p>
@@ -117,11 +125,11 @@ export default function UnderTheHood() {
           Apache-2.0, licensed separately. Review the original terms before
           using or redistributing the model.
         </p>
-        <p className="health-note">
+        <Hint>
           ZeroCast wraps the model for validation, queued inference, sample-path
           totals and UI presentation. The API reports its configured model and
           revision; it does not verify modifications to the underlying weights.
-        </p>
+        </Hint>
         <div className="download-actions">
           <a
             className="text-link"

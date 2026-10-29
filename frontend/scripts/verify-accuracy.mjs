@@ -1,3 +1,4 @@
+import { chooseOption } from "./lib/choose-option.mjs";
 import { chromium, expect } from "@playwright/test";
 import { readFile, mkdir } from "node:fs/promises";
 const base = process.env.VERIFY_URL || "http://localhost:3000";
@@ -80,9 +81,7 @@ try {
   expect(Buffer.concat(image).subarray(0, 8).toString("hex")).toBe(
     "89504e470d0a1a0a",
   );
-  await page
-    .getByLabel("Accuracy chart item")
-    .selectOption(accuracy.series[0].series_id);
+  await chooseOption(page, "Chart item", accuracy.series[0].series_id);
   for (const [name, width, height] of [
     ["desktop", 1440, 1000],
     ["mobile", 390, 844],
@@ -184,13 +183,17 @@ try {
     ).toBeDisabled();
     expect(submitted).toBe(0);
     await test.screenshot({ path: `${folder}/before-run.png`, fullPage: true });
-    for (const input of await test.locator(".accuracy-item-picker input").all())
-      await input.check();
-    await test.getByLabel("Accuracy forecast horizon").fill("0");
+    await test.getByRole("button", { name: "Items to score" }).click();
+    await test
+      .locator(".zc-popover")
+      .getByRole("button", { name: /^Select all/ })
+      .click();
+    await test.keyboard.press("Escape");
+    await test.getByLabel("Forecast horizon", { exact: true }).fill("0");
     await expect(
       test.getByRole("button", { name: "Run accuracy", exact: true }),
     ).toBeDisabled();
-    await test.getByLabel("Accuracy forecast horizon").fill("14");
+    await test.getByLabel("Forecast horizon", { exact: true }).fill("14");
     await test
       .getByRole("button", { name: "Run accuracy", exact: true })
       .click();

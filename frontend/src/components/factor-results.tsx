@@ -1,4 +1,7 @@
 "use client";
+import { SortHeader } from "@/components/ui/table";
+import { Disclosure } from "@/components/ui/controls";
+import { Callout, Hint } from "@/components/ui/feedback";
 import { Select } from "./ui/select";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -52,8 +55,10 @@ export function FactorResults({
   }
   function statistics(f: Factor) {
     return (
-      <details className="factor-evidence">
-        <summary>Statistical details</summary>
+      <Disclosure
+        className="factor-evidence"
+        summary={<>Statistical details</>}
+      >
         <dl>
           <div>
             <dt>Best lag (periods)</dt>
@@ -68,17 +73,16 @@ export function FactorResults({
             <dd>{number(f.related.p_value)}</dd>
           </div>
         </dl>
-        <p className="health-note">
+        <Hint>
           Historical association after detrending and deseasonalising.
           Association does not establish causation.
-        </p>
-      </details>
+        </Hint>
+      </Disclosure>
     );
   }
   function backtest(f: Factor) {
     return (
-      <details className="factor-evidence">
-        <summary>Backtest details</summary>
+      <Disclosure className="factor-evidence" summary={<>Backtest details</>}>
         <dl>
           <div>
             <dt>Sales-only error (WQL)</dt>
@@ -97,11 +101,11 @@ export function FactorResults({
             <dd>{number(f.helps_yug.ci_high)}</dd>
           </div>
         </dl>
-        <p className="health-note">
+        <Hint>
           Lower backtest error is better. Interval scale and confidence level
           were not specified by the source.
-        </p>
-      </details>
+        </Hint>
+      </Disclosure>
     );
   }
   return (
@@ -137,11 +141,11 @@ export function FactorResults({
           <p>Accuracy change when a driver is added.</p>
         </article>
       </div>
-      <p className="health-note">
+      <Hint>
         Sales-only baseline WQL: <strong>{number(result.baseline_wql)}</strong>{" "}
         · Item: {result.series_id}. Negative error change means better
         performance than sales-only in this backtest.
-      </p>
+      </Hint>
       <div className="health-filters driver-filters">
         <label>
           Search drivers
@@ -165,9 +169,9 @@ export function FactorResults({
           onChange={setVerdict}
         />
       </div>
-      <p className="health-note" role="status">
+      <Hint role="status">
         {rows.length} of {result.factors.length} drivers shown.
-      </p>
+      </Hint>
       <div
         className="health-table-scroll factor-table"
         role="region"
@@ -180,11 +184,12 @@ export function FactorResults({
           </caption>
           <thead>
             <tr>
-              <th aria-sort={descending ? "descending" : "ascending"}>
-                <button onClick={() => setDescending(!descending)}>
-                  driver {descending ? "↓" : "↑"}
-                </button>
-              </th>
+              <SortHeader
+                label="Driver"
+                active
+                descending={descending}
+                onSort={() => setDescending(!descending)}
+              />
               <th>Related to sales?</th>
               <th>Forecast lift</th>
               <th>What it means</th>
@@ -229,9 +234,7 @@ export function FactorResults({
                 <td>
                   <strong>{verdicts[f.verdict].label}</strong>
                   <p>{verdicts[f.verdict].meaning}</p>
-                  {f.explanation && (
-                    <p className="health-note">Source note: {f.explanation}</p>
-                  )}
+                  {f.explanation && <Hint>Source note: {f.explanation}</Hint>}
                 </td>
               </tr>
             ))}
@@ -239,17 +242,19 @@ export function FactorResults({
         </table>
       </div>
       {!rows.length && (
-        <div className="health-table-empty">
+        <Callout tone="neutral">
           <h3>
             {result.factors.length
               ? "No drivers match these filters."
               : "No driver results returned."}
           </h3>
           <p>Choose another filter or run a new driver check.</p>
-        </div>
+        </Callout>
       )}
-      <details className="provenance">
-        <summary>How to read these results</summary>
+      <Disclosure
+        className="provenance"
+        summary={<>How to read these results</>}
+      >
         <p>
           Both lens decisions and the combined verdict are supplied by the
           source. Missing fields stay unreported; the page does not infer a
@@ -265,7 +270,7 @@ export function FactorResults({
           because their scale and confidence level are not defined in the
           contract.
         </p>
-      </details>
+      </Disclosure>
     </section>
   );
 }

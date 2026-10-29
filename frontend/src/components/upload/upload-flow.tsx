@@ -1,4 +1,7 @@
 "use client";
+import { PageHeader } from "@/components/ui/layout";
+import { Badge, Callout, Hint } from "@/components/ui/feedback";
+import { StatCard, StatGrid } from "@/components/ui/stat";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -63,8 +66,8 @@ function Preview({ rows }: { rows: Record<string, string>[] }) {
     <div className="upload-preview-wrap">
       {columns.length > 3 && (
         <p className="upload-preview-hint">
-          {columns.length.toLocaleString("en-US")} columns · Scroll horizontally to
-          review all fields.
+          {columns.length.toLocaleString("en-US")} columns · Scroll horizontally
+          to review all fields.
         </p>
       )}
       <div
@@ -317,21 +320,20 @@ export function UploadFlow() {
           <ArrowLeft size={15} />
           Connect data
         </Link>
-        <p className="eyebrow">BRING YOUR OWN HISTORY</p>
-        <h1>Upload file</h1>
+        <PageHeader eyebrow="Bring Your Own History" title={<>Upload file</>} />
         <p className="lede">
           Prepare your file locally; upload the converted Parquet when ready.
         </p>
       </section>
       <SheetsImport disabled={!!busy} onFile={selectFile} />
-      <aside className="upload-limits">
+      <Callout tone="info">
         <strong>File limits</strong>
         <p>
           CSV, Excel, Parquet or JSON · raw file ≤ 1 GB · uploaded Parquet ≤ 50
           MB · at least 30 known points per item · up to 10 drivers. Forecast
           runs later allow up to 100 items and 256 periods.
         </p>
-      </aside>
+      </Callout>
       <section className="upload-panel">
         <div className="section-title">
           <h2>Choose your file</h2>
@@ -398,7 +400,7 @@ export function UploadFlow() {
         )}
       </div>
       {error && (
-        <div role="alert" className="upload-error">
+        <Callout tone="danger">
           <strong>
             {error.startsWith("Backend unreachable")
               ? "Backend unreachable"
@@ -406,15 +408,13 @@ export function UploadFlow() {
           </strong>
           <p>{error}</p>
           <p>Your original file has not been changed.</p>
-        </div>
+        </Callout>
       )}
       {inspection && (
         <section className="upload-panel">
           <div className="section-title">
             <h2>Confirm your columns</h2>
-            <span className="badge">
-              {inspection.rows.toLocaleString("en-US")} source rows
-            </span>
+            <Badge>{inspection.rows.toLocaleString("en-US")} source rows</Badge>
           </div>
           {inspection.sheets.length > 0 && (
             <div className="sheet-choice">
@@ -577,7 +577,9 @@ export function UploadFlow() {
                 ]}
                 value={mapping.aggregation}
                 onChange={(value) =>
-                  updateMapping({ aggregation: value as Mapping["aggregation"] })
+                  updateMapping({
+                    aggregation: value as Mapping["aggregation"],
+                  })
                 }
               />
             </div>
@@ -598,36 +600,35 @@ export function UploadFlow() {
         <section className="upload-panel">
           <div className="section-title">
             <h2>Review & upload</h2>
-            <span className="badge">
-              Parquet ready · {fileSize(prepared.file.size)}
-            </span>
+            <Badge>Parquet ready · {fileSize(prepared.file.size)}</Badge>
           </div>
-          <div className="preview-stats">
-            <article>
-              <span>Prepared rows</span>
-              <strong>{prepared.rows.toLocaleString("en-US")}</strong>
-              <small>
-                {prepared.collapsed.toLocaleString("en-US")} source rows combined
-              </small>
-            </article>
-            <article>
-              <span>Items</span>
-              <strong>{prepared.series.toLocaleString("en-US")}</strong>
-              <small>
-                {prepared.shortSeries} with fewer than 30 known points
-              </small>
-            </article>
-            <article>
-              <span>Unknown targets</span>
-              <strong>{prepared.missingTargets.toLocaleString("en-US")}</strong>
-              <small>Preserved as blanks</small>
-            </article>
-          </div>
+          <StatGrid>
+            <StatCard
+              label="Prepared rows"
+              value={<>{prepared.rows.toLocaleString("en-US")}</>}
+              hint={
+                <>
+                  {prepared.collapsed.toLocaleString("en-US")} source rows
+                  combined
+                </>
+              }
+            />
+            <StatCard
+              label="Items"
+              value={<>{prepared.series.toLocaleString("en-US")}</>}
+              hint={<>{prepared.shortSeries} with fewer than 30 known points</>}
+            />
+            <StatCard
+              label="Unknown targets"
+              value={<>{prepared.missingTargets.toLocaleString("en-US")}</>}
+              hint={<>Preserved as blanks</>}
+            />
+          </StatGrid>
           {prepared.shortSeries > 0 && (
-            <p className="upload-warning">
+            <Callout tone="warning">
               {prepared.shortSeries} item have insufficient history. The backend
               health check will determine which item can be forecast.
-            </p>
+            </Callout>
           )}
           <Preview rows={prepared.sample} />
           <div className="mapping-grid">
@@ -691,10 +692,10 @@ export function UploadFlow() {
             )}
           </div>
           {!apiConfigured && (
-            <p className="health-note" role="status">
+            <Hint role="status">
               Demo mode · upload needs the backend. You can download your
               prepared Parquet.
-            </p>
+            </Hint>
           )}
           {busy === "upload" && (
             <div className="upload-progress">
@@ -707,7 +708,7 @@ export function UploadFlow() {
             </div>
           )}
           {dataset && (
-            <div role="status" className="upload-success">
+            <Callout tone="success" role="status">
               <Check size={20} />
               <div>
                 <h3>Dataset accepted</h3>
@@ -728,7 +729,7 @@ export function UploadFlow() {
                   </Link>
                 </Button>
               </div>
-            </div>
+            </Callout>
           )}
         </section>
       )}

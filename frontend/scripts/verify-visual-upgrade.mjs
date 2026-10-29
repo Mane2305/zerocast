@@ -56,7 +56,9 @@ try {
       ? "Unavailable"
       : `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(reviewed.band_coverage * 100)}%`,
   );
-  await expect(page.locator(".forecast-kpis")).toContainText("no training");
+  await expect(page.getByLabel("Forecast overview")).toContainText(
+    "no training",
+  );
   await shot("after");
   await shot("after-viewport", false);
   await page

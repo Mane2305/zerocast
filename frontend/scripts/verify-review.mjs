@@ -1,3 +1,4 @@
+import { chooseOption } from "./lib/choose-option.mjs";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import { mkdir, readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
@@ -311,17 +312,13 @@ try {
   assert(csv.includes("A stock correction explained the spike."));
   assert(csv.includes('"expected"'));
   assert.equal(csv.trim().split(/\r?\n/).length, 9);
-  await page
-    .getByRole("combobox", { name: "Review series", exact: true })
-    .selectOption("B");
+  await chooseOption(page, "Review series", "B");
   await expect(
     page.getByText("No positive surprises returned.", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Not supplied", { exact: true })).toHaveCount(3);
   await shot("empty-series");
-  await page
-    .getByRole("combobox", { name: "Review series", exact: true })
-    .selectOption("A");
+  await chooseOption(page, "Review series", "A");
   await page.setViewportSize({ width: 390, height: 844 });
   await shot("mobile");
   assert(

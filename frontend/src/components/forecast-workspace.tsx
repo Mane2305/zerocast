@@ -1,4 +1,10 @@
 "use client";
+import { Sparkles } from "lucide-react";
+import { EmptyState } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/layout";
+import { RouteState } from "@/components/ui/route-state";
+import { Disclosure } from "@/components/ui/controls";
+import { Callout, Hint } from "@/components/ui/feedback";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -33,18 +39,18 @@ export function ForecastWorkspace({
   });
   if (query.isPending)
     return (
-      <section className="route-state" role="status">
+      <RouteState kind="loading">
         <h1>Loading forecast inputs…</h1>
         <p>Reading dataset readiness and available item.</p>
-      </section>
+      </RouteState>
     );
   if (query.isError)
     return (
-      <section className="route-state" role="alert">
+      <RouteState kind="error">
         <h1>Forecast inputs unavailable</h1>
         <p>{query.error.message}</p>
         <Button onClick={() => query.refetch()}>Retry inputs</Button>
-      </section>
+      </RouteState>
     );
   return (
     <ForecastRunner
@@ -243,10 +249,11 @@ function ForecastRunner({
   const parameters = (
     <aside className="planning-panel api-planning-panel">
       {" "}
-      <details className="forecast-input-panel" open>
-        <summary>
-          {result ? "Change forecast inputs" : "Forecast inputs"}
-        </summary>
+      <Disclosure
+        className="forecast-input-panel"
+        defaultOpen
+        summary={<>{result ? "Change forecast inputs" : "Forecast inputs"}</>}
+      >
         <section
           className="forecast-parameters"
           aria-label="Forecast parameters"
@@ -295,20 +302,14 @@ function ForecastRunner({
               {submitting ? "Submitting…" : "Run forecast"}
             </Button>
           </div>
-          <p className="health-note">
+          <Hint>
             {invalid ||
               "Ready to run. Up to 100 items and 256 periods; drivers are not used."}
-          </p>
+          </Hint>
         </section>
-        {submitError && (
-          <div role="alert" className="health-table-empty">
-            {submitError}
-          </div>
-        )}
+        {submitError && <Callout tone="danger">{submitError}</Callout>}
         {!jobId && !submitting && (
-          <section className="forecast-empty">
-            <h2>Your forecast starts here.</h2>
-          </section>
+          <EmptyState icon={Sparkles} title={<>Your forecast starts here.</>} />
         )}
         {jobId && (
           <section className="forecast-job" aria-label="Forecast job">
@@ -364,10 +365,10 @@ function ForecastRunner({
                     {paused ? "Resume polling" : "Pause polling"}
                   </Button>
                 )}
-                <p className="health-note">
+                <Hint>
                   Pausing stops status checks, not the server job. This URL
                   retains the job ID for reload.
-                </p>
+                </Hint>
               </>
             )}
             {job.data?.status === "failed" && (
@@ -382,19 +383,21 @@ function ForecastRunner({
           </section>
         )}
         {mismatch && (
-          <div role="alert" className="health-table-empty">
+          <Callout tone="danger">
             The returned item or horizon does not match the submitted request.
             Results are hidden to avoid showing the wrong forecast.
-          </div>
+          </Callout>
         )}
-      </details>
+      </Disclosure>
     </aside>
   );
   return (
     <div className="health-page forecast-workspace">
-      <p className="eyebrow">FORECAST · SALES HISTORY ONLY</p>
-      <h1 className="forecast-title">Forecast</h1>
-      <p>{dataset.name}</p>
+      <PageHeader
+        eyebrow="Forecast · Sales History Only"
+        title={<>Forecast</>}
+        description={dataset.name}
+      />
       <Link
         className="text-link"
         href={`/data-health/${encodeURIComponent(id)}`}
@@ -410,10 +413,10 @@ function ForecastRunner({
               View portfolio risk
             </Link>
           </Button>
-          <p className="health-note">
+          <Hint>
             Results belong to job {jobId}. Changes to item or horizon apply when
             you click Run forecast again.
-          </p>
+          </Hint>
           <ForecastResults
             parameters={parameters}
             forecast={result as Forecast}

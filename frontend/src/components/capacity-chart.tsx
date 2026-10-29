@@ -1,4 +1,6 @@
 "use client";
+import { Disclosure } from "@/components/ui/controls";
+import { primaryFor, registerChartThemes, themeName } from "@/lib/chart-theme";
 import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import * as echarts from "echarts/core";
@@ -31,8 +33,15 @@ export default function CapacityChart({
   const { resolvedTheme } = useTheme();
   useEffect(() => {
     if (!ref.current) return;
-    const chart = echarts.init(ref.current, undefined, { renderer: "svg" });
-    const color = resolvedTheme === "dark" ? "#8dd7b4" : "#23684f";
+    registerChartThemes();
+    const chart = echarts.init(
+      ref.current,
+      themeName(resolvedTheme === "dark"),
+      {
+        renderer: "svg",
+      },
+    );
+    const color = primaryFor(resolvedTheme === "dark");
     chart.setOption({
       animation: false,
       aria: { enabled: true },
@@ -77,8 +86,7 @@ export default function CapacityChart({
         role="img"
         aria-label="Capacity breach risk per period; bars show upper probability bounds"
       />
-      <details>
-        <summary>Probability ranges by period</summary>
+      <Disclosure summary={<>Probability ranges by period</>}>
         <div className="health-table-scroll">
           <table>
             <thead>
@@ -97,7 +105,7 @@ export default function CapacityChart({
             </tbody>
           </table>
         </div>
-      </details>
+      </Disclosure>
     </>
   );
 }

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Disclosure } from "@/components/ui/controls";
+import { Badge, Hint } from "@/components/ui/feedback";
 import { Database, FileUp, ArrowUpRight } from "lucide-react";
 import { demos } from "@/lib/demos";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,7 @@ export default function Data() {
       <div className="source-grid">
         {demos.map((demo) => (
           <article key={demo.id}>
-            <span className="badge">REAL DATA · SAVED FORECAST</span>
+            <Badge>REAL DATA · SAVED FORECAST</Badge>
             <h2>{demo.title}</h2>
             <p>{demo.description}</p>
             <div className="download-actions">
@@ -55,13 +57,12 @@ export default function Data() {
           <Link className="text-link" href="/upload">
             Import published sheet ↗
           </Link>
-          <p className="health-note">Database connections: coming soon.</p>
+          <Hint>Database connections: coming soon.</Hint>
         </article>
       </div>
-      <details className="api-details">
-        <summary>API connection</summary>
+      <Disclosure className="api-details" summary={<>API connection</>}>
         <ConnectionCheck />
-      </details>
+      </Disclosure>
     </section>
   );
 }

@@ -1,0 +1,641 @@
+/* Component library styles (src/components/ui). Loaded after ui.css. */
+
+/* Tone colors shared by Callout, Badge, StatCard. */
+.zc-tone-neutral {
+  --tone: var(--muted-foreground);
+  --tone-bg: var(--muted);
+  --tone-border: var(--border);
+}
+.zc-tone-info {
+  --tone: #2f5f9e;
+  --tone-bg: #eef4fc;
+  --tone-border: #c9dbf3;
+}
+.zc-tone-success {
+  --tone: #1f6b4b;
+  --tone-bg: #eaf5ef;
+  --tone-border: #bfe0cd;
+}
+.zc-tone-warning {
+  --tone: #8a5a12;
+  --tone-bg: #fdf5e7;
+  --tone-border: #f0d9ad;
+}
+.zc-tone-danger {
+  --tone: #a3362c;
+  --tone-bg: #fcefed;
+  --tone-border: #f1c9c4;
+}
+.dark .zc-tone-info {
+  --tone: #9cc2f5;
+  --tone-bg: #16243a;
+  --tone-border: #263b5c;
+}
+.dark .zc-tone-success {
+  --tone: #8dd7b4;
+  --tone-bg: #122a20;
+  --tone-border: #1f4334;
+}
+.dark .zc-tone-warning {
+  --tone: #f0c27a;
+  --tone-bg: #2e2412;
+  --tone-border: #4a3a1c;
+}
+.dark .zc-tone-danger {
+  --tone: #ffa99c;
+  --tone-bg: #321a17;
+  --tone-border: #522a25;
+}
+
+/* ---------- Page layout ---------- */
+.zc-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 24px;
+  flex-wrap: wrap;
+  margin: 4px 0 24px;
+}
+.zc-page-header-text {
+  min-width: 0;
+  max-width: 760px;
+}
+.zc-page-header h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+.zc-eyebrow {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.zc-page-description {
+  margin: 6px 0 0;
+  font-size: 14.5px;
+  color: var(--muted-foreground);
+}
+.zc-page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.zc-page-actions,
+.zc-section-actions,
+.zc-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.zc-section {
+  margin-block: 28px;
+}
+.zc-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.zc-section-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.zc-section-head p {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  color: var(--muted-foreground);
+}
+.zc-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+.zc-card-padded {
+  padding: 20px;
+}
+.zc-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.zc-card-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.zc-card-header p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+/* ---------- Stats ---------- */
+.zc-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+}
+.zc-stat {
+  position: relative;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+.zc-stat dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.zc-stat dd {
+  margin: 6px 0 0;
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.zc-stat dd.zc-stat-hint {
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--muted-foreground);
+}
+.zc-stat.zc-tone-success,
+.zc-stat.zc-tone-warning,
+.zc-stat.zc-tone-danger,
+.zc-stat.zc-tone-info {
+  border-left: 3px solid var(--tone);
+}
+
+/* ---------- Feedback ---------- */
+.zc-callout {
+  display: flex;
+  gap: 12px;
+  margin-block: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--tone-border);
+  border-radius: 10px;
+  background: var(--tone-bg);
+  color: var(--foreground);
+  font-size: 13.5px;
+}
+.zc-callout-icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--tone);
+}
+.zc-callout-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.zc-callout-title {
+  font-weight: 600;
+}
+.zc-callout-text p {
+  margin: 0;
+}
+.zc-callout-text p + p {
+  margin-top: 4px;
+}
+.zc-callout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.zc-hint {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+}
+.zc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--tone-border, var(--border));
+  background: var(--tone-bg, var(--muted));
+  color: var(--tone, var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.zc-status {
+  text-transform: capitalize;
+}
+.zc-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.zc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 40px 20px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+.zc-empty-state h3 {
+  margin: 6px 0 0;
+  font-size: 16px;
+  color: var(--foreground);
+}
+.zc-empty-state p {
+  margin: 0;
+  max-width: 460px;
+  font-size: 13.5px;
+}
+.zc-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--muted);
+  color: var(--primary);
+}
+.zc-empty-action {
+  margin-top: 10px;
+}
+.zc-skeleton {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    var(--border) 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: zc-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes zc-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zc-skeleton {
+    animation: none;
+  }
+}
+.zc-page-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 8px;
+}
+
+/* ---------- Controls ---------- */
+.zc-input {
+  width: 100%;
+}
+.zc-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13.5px;
+  user-select: none;
+}
+.zc-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.zc-switch-track {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background 0.15s;
+}
+.zc-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: transform 0.15s;
+}
+.zc-switch input:checked + .zc-switch-track {
+  background: var(--primary);
+}
+.zc-switch input:checked + .zc-switch-track .zc-switch-thumb {
+  transform: translateX(14px);
+}
+.zc-switch input:focus-visible + .zc-switch-track {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.zc-switch input:disabled ~ * {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.zc-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 12px;
+}
+.zc-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+}
+.zc-tabs button:hover {
+  color: var(--foreground);
+  border-color: var(--border-strong);
+}
+.zc-tabs button[aria-selected="true"] {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.zc-tab-count {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.zc-disclosure {
+  margin-block: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+.zc-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  list-style: none;
+}
+.zc-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.zc-disclosure-icon {
+  color: var(--muted-foreground);
+  transition: transform 0.15s;
+}
+.zc-disclosure[open] > summary .zc-disclosure-icon {
+  transform: rotate(180deg);
+}
+.zc-disclosure-body {
+  padding: 0 18px 18px;
+}
+
+/* ---------- Tables (every table goes through TableContainer) ---------- */
+.zc-table-wrap,
+.health-table-scroll,
+.table-scroll {
+  width: 100%;
+  overflow: auto;
+  max-height: 640px;
+  margin-block: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+.zc-table-wrap table,
+.health-table-scroll table,
+.table-scroll table,
+.research-page table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13.5px;
+}
+.zc-table-wrap th,
+.zc-table-wrap td,
+.health-table-scroll th,
+.health-table-scroll td,
+.table-scroll th,
+.table-scroll td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.zc-table-wrap thead th,
+.health-table-scroll thead th,
+.table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.zc-table-wrap tbody tr:hover,
+.health-table-scroll tbody tr:hover {
+  background: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+.zc-table-wrap tbody tr:last-child > *,
+.health-table-scroll tbody tr:last-child > *,
+.table-scroll tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.zc-table-wrap tbody th,
+.health-table-scroll tbody th {
+  font-weight: 600;
+}
+.zc-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  color: inherit;
+}
+.zc-sort:hover {
+  color: var(--foreground);
+}
+.zc-sort-th[aria-sort="ascending"] .zc-sort,
+.zc-sort-th[aria-sort="descending"] .zc-sort {
+  color: var(--foreground);
+}
+.zc-sort-icon {
+  opacity: 0.7;
+}
+.zc-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.zc-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.zc-page-of {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Route state (loading / error / empty pages) ---------- */
+.zc-route-state {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  max-width: 720px;
+  margin: 24px 0;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+.zc-route-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--muted);
+  color: var(--primary);
+}
+.zc-route-error .zc-route-icon {
+  background: #fcefed;
+  color: #a3362c;
+}
+.dark .zc-route-error .zc-route-icon {
+  background: #321a17;
+  color: #ffa99c;
+}
+.zc-route-body {
+  min-width: 0;
+}
+.zc-route-body h1,
+.zc-route-body h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.zc-route-body .zc-page-header {
+  margin: 0 0 8px;
+}
+.zc-route-body .zc-page-header h1 {
+  font-size: 20px;
+}
+.zc-route-body p {
+  margin: 0 0 6px;
+  color: var(--muted-foreground);
+}
+.zc-route-body > :last-child {
+  margin-bottom: 0;
+}
+.zc-route-body a,
+.zc-route-body button {
+  margin-top: 8px;
+}
+
+/* In-section eyebrow labels share the page eyebrow style. */
+.eyebrow {
+  margin: 0 0 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+/* Forecast risk panels: wrap instead of overflowing at tablet widths. */
+.forecast-risk-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.forecast-risk-grid section {
+  min-width: 0;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Compact "Compare" disclosure in the chart toolbar. */
+.forecast-comparisons.zc-disclosure {
+  margin: 0;
+  border-radius: 10px;
+}
+.forecast-comparisons.zc-disclosure > summary {
+  padding: 7px 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.forecast-comparisons .zc-disclosure-body {
+  padding: 4px 12px 12px;
+}
+/* Chart PNG export: small ghost button. */
+.studio-chart-wrap .accuracy-export,
+.chart-export {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.studio-chart-wrap .accuracy-export:hover {
+  color: var(--foreground);
+  border-color: var(--border-strong);
+}

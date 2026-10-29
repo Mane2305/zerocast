@@ -1,4 +1,6 @@
 "use client";
+import { Disclosure } from "@/components/ui/controls";
+import { Hint } from "@/components/ui/feedback";
 import { useEffect, useRef, useState } from "react";
 import { publishedSheetUrl } from "@/lib/import/sheets";
 import { Button } from "../ui/button";
@@ -62,12 +64,14 @@ export function SheetsImport({
     }
   }
   return (
-    <details className="sheets-import">
-      <summary>Import a published Google Sheet</summary>
-      <p className="health-note">
+    <Disclosure
+      className="sheets-import"
+      summary={<>Import a published Google Sheet</>}
+    >
+      <Hint>
         Public CSV export link · up to 50 MB · no Google sign-in or private
         sheets
-      </p>
+      </Hint>
       <label>
         Published CSV URL
         <input
@@ -91,6 +95,6 @@ export function SheetsImport({
           {error}
         </p>
       )}
-    </details>
+    </Disclosure>
   );
 }

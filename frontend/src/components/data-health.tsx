@@ -1,4 +1,9 @@
 "use client";
+import { Pagination, SortHeader } from "@/components/ui/table";
+import { PageHeader } from "@/components/ui/layout";
+import { RouteState } from "@/components/ui/route-state";
+import { Callout, Hint } from "@/components/ui/feedback";
+import { StatCard, StatGrid } from "@/components/ui/stat";
 import { Select } from "./ui/select";
 import { InfoTip } from "./info-tip";
 import { useDeferredValue, useMemo, useState } from "react";
@@ -37,22 +42,26 @@ export function DataHealthView({
   });
   if (query.isPending)
     return (
-      <section className="route-state" role="status" aria-live="polite">
-        <p className="eyebrow">DATA QUALITY</p>
-        <h1>Loading your health report…</h1>
-        <p>Reading dataset checks and item history summaries.</p>
-      </section>
+      <RouteState kind="loading">
+        <PageHeader
+          eyebrow="Data Quality"
+          title={<>Loading your health report…</>}
+          description={<>Reading dataset checks and item history summaries.</>}
+        />
+      </RouteState>
     );
   if (query.isError && !query.data)
     return (
-      <section className="route-state" role="alert">
-        <p className="eyebrow">DATA QUALITY</p>
-        <h1>
-          {query.error instanceof HealthError
-            ? query.error.title
-            : "Health report unavailable"}
-        </h1>
-        <p>{query.error.message}</p>
+      <RouteState kind="error">
+        <PageHeader
+          eyebrow="Data Quality"
+          title={
+            query.error instanceof HealthError
+              ? query.error.title
+              : "Health report unavailable"
+          }
+          description={query.error.message}
+        />
         <div className="download-actions">
           <Button onClick={() => query.refetch()} disabled={query.isFetching}>
             Retry
@@ -61,7 +70,7 @@ export function DataHealthView({
             <Link href="/data-health">Choose another dataset</Link>
           </Button>
         </div>
-      </section>
+      </RouteState>
     );
   return (
     <HealthReport
@@ -147,7 +156,6 @@ function HealthReport({
   const currentPage = Math.min(page, pageCount - 1);
   const firstRow = currentPage * HEALTH_PAGE_SIZE;
   const visibleRows = rows.slice(firstRow, firstRow + HEALTH_PAGE_SIZE);
-  const lastRow = Math.min(firstRow + HEALTH_PAGE_SIZE, rows.length);
   const toggleSort = (column: typeof sort) => {
     setSort(column);
     setDescending(sort === column ? !descending : false);
@@ -197,21 +205,27 @@ function HealthReport({
     <div className="health-page">
       <section className="health-heading">
         <div>
-          <p className="eyebrow">
-            DATA QUALITY ·{" "}
-            {source === "demo"
-              ? findDemo(dataset.dataset_id)?.synthetic
-                ? "SAVED SYNTHETIC DEMO"
-                : "SAVED REAL DATA DEMO"
-              : "UPLOADED DATASET"}
-          </p>
-          <h1>
-            Data quality{" "}
-            <InfoTip label="Data quality definition">
-              Checks on the uploaded history before forecasting.
-            </InfoTip>
-          </h1>
-          <p>{dataset.name}</p>
+          <PageHeader
+            eyebrow={
+              <>
+                DATA QUALITY ·{" "}
+                {source === "demo"
+                  ? findDemo(dataset.dataset_id)?.synthetic
+                    ? "SAVED SYNTHETIC DEMO"
+                    : "SAVED REAL DATA DEMO"
+                  : "UPLOADED DATASET"}
+              </>
+            }
+            title={
+              <>
+                Data quality{" "}
+                <InfoTip label="Data quality definition">
+                  Checks on the uploaded history before forecasting.
+                </InfoTip>
+              </>
+            }
+            description={dataset.name}
+          />
         </div>
         <Button variant="outline" onClick={refresh} disabled={refreshing}>
           <RefreshCw size={15} />
@@ -284,7 +298,7 @@ function HealthReport({
             </p>
           )}
           {source === "api" && (
-            <p className="health-note">
+            <Hint>
               {dataset.health.ready ? (
                 <Link
                   className="text-link"
@@ -295,34 +309,39 @@ function HealthReport({
               ) : (
                 "Resolve the reported issues before forecasting."
               )}
-            </p>
+            </Hint>
           )}
         </div>
       </section>
-      <div className="health-stats">
-        <article>
-          <span>item in dataset</span>
-          <strong>{number(dataset.series_count)}</strong>
-          <small>
-            {series
-              ? `${number(series.length)} summaries supplied`
-              : "Item summaries not supplied"}
-          </small>
-        </article>
-        <article>
-          <span>Detected frequency</span>
-          <strong className="capitalize">{dataset.frequency}</strong>
-          <small>Dataset-level detection</small>
-        </article>
-        <article>
-          <span>History coverage</span>
-          <strong className="health-date">
-            {date(dataset.date_range?.start)}
-            <br />→ {date(dataset.date_range?.end)}
-          </strong>
-          <small>As reported by the source</small>
-        </article>
-      </div>
+      <StatGrid>
+        <StatCard
+          label="Items in dataset"
+          value={<>{number(dataset.series_count)}</>}
+          hint={
+            <>
+              {series
+                ? `${number(series.length)} summaries supplied`
+                : "Item summaries not supplied"}
+            </>
+          }
+        />
+        <StatCard
+          label="Detected frequency"
+          value={<span className="capitalize">{dataset.frequency}</span>}
+          hint={<>Dataset-level detection</>}
+        />
+        <StatCard
+          className="health-date"
+          label="History coverage"
+          value={
+            <>
+              {date(dataset.date_range?.start)}
+              <br />→ {date(dataset.date_range?.end)}
+            </>
+          }
+          hint={<>As reported by the source</>}
+        />
+      </StatGrid>
       <section aria-label="Data quality notices" className="health-notices">
         {checks.map(
           (c, i) =>
@@ -355,10 +374,10 @@ function HealthReport({
           </Button>
         )}
         {checks.length === 0 && (
-          <p className="health-note">
+          <Hint>
             No individual checks were supplied. Readiness above comes directly
             from the report.
-          </p>
+          </Hint>
         )}
       </section>
       <section className="health-series" aria-labelledby="series-heading">
@@ -378,7 +397,7 @@ function HealthReport({
         <div
           role="tablist"
           aria-label="Health checks"
-          className="health-tabs"
+          className="health-tabs zc-tabs"
           onKeyDown={(event) => {
             const buttons = Array.from(
               event.currentTarget.querySelectorAll<HTMLButtonElement>(
@@ -410,23 +429,26 @@ function HealthReport({
               label: labels(c.id),
               count: c.count,
             })),
-          ].map((t) => (
-            <button
-              key={t.id}
-              id={`health-tab-${t.id}`}
-              role="tab"
-              aria-selected={tab === t.id}
-              aria-controls="health-panel"
-              tabIndex={tab === t.id ? 0 : -1}
-              onClick={() => {
-                setTab(t.id);
-                setPage(0);
-              }}
-            >
-              {t.label}
-              <span>{number(t.count)}</span>
-            </button>
-          ))}
+          ]
+            // Checks with no hits are noise; keep the selected one visible.
+            .filter((t) => t.id === "all" || t.count > 0 || tab === t.id)
+            .map((t) => (
+              <button
+                key={t.id}
+                id={`health-tab-${t.id}`}
+                role="tab"
+                aria-selected={tab === t.id}
+                aria-controls="health-panel"
+                tabIndex={tab === t.id ? 0 : -1}
+                onClick={() => {
+                  setTab(t.id);
+                  setPage(0);
+                }}
+              >
+                {t.label}
+                <span className="zc-tab-count">{number(t.count)}</span>
+              </button>
+            ))}
         </div>
         <div
           id="health-panel"
@@ -463,65 +485,45 @@ function HealthReport({
             />
           </div>
           {linkageMissing ? (
-            <p className="health-table-empty">
+            <Callout tone="neutral">
               This check does not identify affected item. Its count is available
               above; a filtered list cannot be inferred.
-            </p>
+            </Callout>
           ) : !series ? (
-            <p className="health-table-empty">
+            <Callout tone="neutral">
               Item summaries were not supplied by the source.
-            </p>
+            </Callout>
           ) : (
             <>
-              <p className="health-note" role="status">
+              <Hint role="status">
                 {number(rows.length)} of {number(series.length)} supplied item
                 shown{selected ? ` · ${labels(selected.id)}` : ""}.
-              </p>
+              </Hint>
               {selected?.affected_series?.some(
                 (id) => !suppliedSeriesIds.has(id),
               ) && (
-                <p className="health-note">
+                <Hint>
                   Some affected item have no supplied summary and cannot be
                   displayed in this table.
-                </p>
+                </Hint>
               )}
               <div className="health-table-scroll">
                 <table>
                   <caption className="sr-only">Item quality summaries</caption>
                   <thead>
                     <tr>
-                      <th
-                        aria-sort={
-                          sort === "series_id"
-                            ? descending
-                              ? "descending"
-                              : "ascending"
-                            : "none"
-                        }
-                      >
-                        <button onClick={() => toggleSort("series_id")}>
-                          Item{" "}
-                          {sort === "series_id"
-                            ? descending
-                              ? "↓"
-                              : "↑"
-                            : "↕"}
-                        </button>
-                      </th>
-                      <th
-                        aria-sort={
-                          sort === "length"
-                            ? descending
-                              ? "descending"
-                              : "ascending"
-                            : "none"
-                        }
-                      >
-                        <button onClick={() => toggleSort("length")}>
-                          History points{" "}
-                          {sort === "length" ? (descending ? "↓" : "↑") : "↕"}
-                        </button>
-                      </th>
+                      <SortHeader
+                        label={<>Item</>}
+                        active={sort === "series_id"}
+                        descending={descending}
+                        onSort={() => toggleSort("series_id")}
+                      />
+                      <SortHeader
+                        label={<>History points</>}
+                        active={sort === "length"}
+                        descending={descending}
+                        onSort={() => toggleSort("length")}
+                      />
                       <th>Period</th>
                       <th>Missing</th>
                       <th>Status</th>
@@ -565,45 +567,21 @@ function HealthReport({
                   </tbody>
                 </table>
               </div>
-              {rows.length > HEALTH_PAGE_SIZE && (
-                <nav
-                  className="health-pagination"
-                  aria-label="Item table pages"
-                >
-                  <span>
-                    Items {number(firstRow + 1)}–{number(lastRow)} of{" "}
-                    {number(rows.length)}
-                  </span>
-                  <div>
-                    <Button
-                      variant="outline"
-                      disabled={currentPage === 0}
-                      onClick={() => setPage(currentPage - 1)}
-                    >
-                      Previous
-                    </Button>
-                    <span aria-live="polite">
-                      Page {number(currentPage + 1)} of {number(pageCount)}
-                    </span>
-                    <Button
-                      variant="outline"
-                      disabled={currentPage >= pageCount - 1}
-                      onClick={() => setPage(currentPage + 1)}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </nav>
-              )}
+              <Pagination
+                page={currentPage}
+                pageSize={HEALTH_PAGE_SIZE}
+                total={rows.length}
+                onPage={setPage}
+              />
               {!rows.length && series.length > 0 && (
-                <p className="health-table-empty">
+                <Callout tone="neutral">
                   No items match. Clear your filters.
-                </p>
+                </Callout>
               )}
               {!rows.length && series.length === 0 && (
-                <p className="health-table-empty">
+                <Callout tone="neutral">
                   This dataset has no item summaries to display.
-                </p>
+                </Callout>
               )}
             </>
           )}

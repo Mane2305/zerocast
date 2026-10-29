@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RouteState } from "@/components/ui/route-state";
 import { PortfolioJob } from "@/components/portfolio";
 export const metadata = { title: "Portfolio · ZeroCast" };
 export default async function Page({
@@ -12,7 +13,7 @@ export default async function Page({
   const { job } = await searchParams;
   if (typeof job !== "string" || !job.trim())
     return (
-      <section className="route-state">
+      <RouteState kind="empty">
         <h1>Choose a completed forecast.</h1>
         <p>
           Portfolio needs a forecast job. Open a result and choose Portfolio.
@@ -23,7 +24,7 @@ export default async function Page({
         >
           Set up a forecast →
         </Link>
-      </section>
+      </RouteState>
     );
   return (
     <PortfolioJob key={`${datasetId}-${job}`} id={datasetId} jobId={job} />

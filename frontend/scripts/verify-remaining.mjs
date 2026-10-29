@@ -1,3 +1,4 @@
+import { chooseOption } from "./lib/choose-option.mjs";
 import { chromium, expect } from "@playwright/test";
 import { mkdir, readFile } from "node:fs/promises";
 const base = process.env.VERIFY_URL || "http://localhost:3000";
@@ -52,8 +53,8 @@ try {
     route.fulfill({ json: data }),
   );
   await page.goto(base + "/portfolio/demo/retail");
-  await page.getByLabel("Group portfolio by").selectOption("store");
-  await page.getByLabel("Portfolio group", { exact: true }).selectOption("S1");
+  await chooseOption(page, "Group by", "store");
+  await chooseOption(page, "Group", "S1");
   await expect(page.locator(".portfolio-table tbody tr")).toHaveCount(2);
   await page.unroute("**/demo/retail/dataset.json");
   const rows = Array.from({ length: 32 }, (_, i) => ({
@@ -104,7 +105,7 @@ try {
   ).toBeVisible({ timeout: 30000 });
   await expect(page.locator(".upload-panel").last()).toContainText("S1|P1");
   await page.getByLabel("Dataset unit").fill("index points");
-  await page.getByLabel("Values add over time").selectOption("no");
+  await chooseOption(page, "Do values add over time?", "no");
   if (process.env.VERIFY_DEMO_MODE !== "1") {
     let body = "";
     let parquet;

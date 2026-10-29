@@ -213,8 +213,7 @@
 }
 .studio h1,
 .studio .intro h1,
-.studio .health-heading h1,
-.studio .forecast-workspace > h1.forecast-title {
+.studio .health-heading h1 {
   font-size: 20px;
   letter-spacing: -0.4px;
   font-weight: 650;
@@ -545,10 +544,6 @@
 .studio .forecast-kpis small {
   font-size: 10px;
 }
-.studio .forecast-kpis .kpi-range {
-  font-size: 19px;
-  gap: 3px;
-}
 .studio .forecast-kpis > div:last-child {
   grid-column: auto;
   border: 1px solid var(--border);
@@ -707,10 +702,6 @@
 .studio .upload-panel h2 {
   font-size: 16px;
 }
-.studio .upload-limits {
-  padding: 12px 16px;
-  margin-block: 16px;
-}
 .studio .file-drop {
   padding: 24px;
   margin-top: 16px;
@@ -744,13 +735,9 @@
 .studio .review-results {
   margin-block: 16px;
 }
-.studio .review-controls,
 .studio .factor-lenses {
   margin-block: 16px;
   gap: 12px;
-}
-.studio .review-group-title {
-  margin-block: 16px 8px;
 }
 .studio .review-event h4 {
   font-size: 14px;
@@ -759,8 +746,7 @@
   font-size: 20px;
 }
 .studio .forecast-parameters,
-.studio .forecast-job,
-.studio .forecast-empty {
+.studio .forecast-job {
   padding: 12px 16px;
   margin-block: 16px;
 }
@@ -975,9 +961,6 @@
   }
   .studio .forecast-kpis dd {
     font-size: 22px;
-  }
-  .studio .forecast-kpis .kpi-range {
-    font-size: 17px;
   }
   .studio .chart-heading {
     display: flex;

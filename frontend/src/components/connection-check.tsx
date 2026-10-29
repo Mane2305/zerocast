@@ -1,4 +1,5 @@
 "use client";
+import { Hint } from "@/components/ui/feedback";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, LoaderCircle, PlugZap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,10 @@ export function ConnectionCheck() {
   const unreachable = health.error instanceof TypeError;
   if (!apiConfigured)
     return (
-      <p className="health-note" role="status">
+      <Hint role="status">
         Demo mode · upload needs the backend. Saved datasets work without the
         API.
-      </p>
+      </Hint>
     );
   return (
     <div className="connection">

@@ -1,4 +1,11 @@
 "use client";
+import {
+  CHART,
+  chartStructure,
+  primaryFor,
+  registerChartThemes,
+  themeName,
+} from "@/lib/chart-theme";
 import { useEffect, useRef } from "react";
 import { valueFormatter, countUnits } from "@/lib/numbers";
 import { formatPeriod, type Frequency } from "@/lib/dates";
@@ -60,7 +67,14 @@ export default function ForecastChart({
   const { resolvedTheme } = useTheme();
   useEffect(() => {
     if (!ref.current) return;
-    const chart = echarts.init(ref.current, undefined, { renderer: "svg" });
+    registerChartThemes();
+    const chart = echarts.init(
+      ref.current,
+      themeName(resolvedTheme === "dark"),
+      {
+        renderer: "svg",
+      },
+    );
     const historyMap = new Map(
       history?.dates.map((date, i) => [periodKey(date), history.target[i]]) ??
         [],
@@ -104,7 +118,7 @@ export default function ForecastChart({
               value: point.actual,
               itemStyle: {
                 color:
-                  point.actual > point.expected_p90 ? "#247955" : "#c2413a",
+                  point.actual > point.expected_p90 ? CHART.good : CHART.bad,
               },
             },
           ];
@@ -117,8 +131,8 @@ export default function ForecastChart({
       ...values,
     ];
     const q = (level: number) => series.quantiles[levels.indexOf(level)];
-    const green = resolvedTheme === "dark" ? "#8dd7b4" : "#23684f";
-    const muted = resolvedTheme === "dark" ? "#b4c7bb" : "#62706a";
+    const green = primaryFor(resolvedTheme === "dark");
+    const muted = chartStructure(resolvedTheme === "dark").text;
     const band = (
       low: number,
       high: number,
@@ -229,7 +243,7 @@ export default function ForecastChart({
         axisLabel: { formatter: (v: number) => format.format(v) },
         splitLine: {
           lineStyle: {
-            color: resolvedTheme === "dark" ? "#34453a" : "#dfe5de",
+            color: chartStructure(resolvedTheme === "dark").grid,
           },
         },
       },
@@ -270,7 +284,7 @@ export default function ForecastChart({
                 connectNulls: false,
                 symbol: "none",
                 lineStyle: {
-                  color: resolvedTheme === "dark" ? "#8dbdff" : "#315eab",
+                  color: resolvedTheme === "dark" ? CHART.infoSoft : CHART.info,
                   width: 2,
                   type: "dashed",
                 },
@@ -286,11 +300,11 @@ export default function ForecastChart({
                 symbol: "circle",
                 symbolSize: 4,
                 lineStyle: {
-                  color: resolvedTheme === "dark" ? "#c8daf5" : "#142f58",
+                  color: resolvedTheme === "dark" ? CHART.infoSoft : CHART.info,
                   width: 1.4,
                 },
                 itemStyle: {
-                  color: resolvedTheme === "dark" ? "#c8daf5" : "#142f58",
+                  color: resolvedTheme === "dark" ? CHART.infoSoft : CHART.info,
                 },
                 markPoint: {
                   data: surpriseMarkers,
@@ -334,8 +348,8 @@ export default function ForecastChart({
                 data: pad(series.last_year ?? series.dates.map(() => null)),
                 symbol: "none",
                 connectNulls: false,
-                lineStyle: { color: "#b98743", type: "dashed" },
-                itemStyle: { color: "#b98743" },
+                lineStyle: { color: CHART.warning, type: "dashed" },
+                itemStyle: { color: CHART.warning },
               } as LineSeriesOption,
             ]
           : []),
@@ -371,7 +385,7 @@ export default function ForecastChart({
           if (!chart) return;
           const url = chart.getDataURL({
             type: "svg",
-            backgroundColor: resolvedTheme === "dark" ? "#17251d" : "#ffffff",
+            backgroundColor: chartStructure(resolvedTheme === "dark").surface,
           });
           const img = new Image();
           img.src = url;

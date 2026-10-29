@@ -64,11 +64,7 @@ export function Select({
         }}
       >
         <Popover.Trigger asChild disabled={disabled}>
-          <button
-            id={triggerId}
-            type="button"
-            className="zc-trigger"
-          >
+          <button id={triggerId} type="button" className="zc-trigger">
             <span className={cn("zc-value", !current && "zc-placeholder")}>
               {current ? (current.label ?? current.value) : placeholder}
             </span>
@@ -112,9 +108,13 @@ export function Select({
                     data-checked={o.value === value || undefined}
                   >
                     <span className="zc-tick" aria-hidden>
-                      {o.value === value && <Check size={14} strokeWidth={2.5} />}
+                      {o.value === value && (
+                        <Check size={14} strokeWidth={2.5} />
+                      )}
                     </span>
-                    <span className="zc-option-label">{o.label ?? o.value}</span>
+                    <span className="zc-option-label">
+                      {o.label ?? o.value}
+                    </span>
                     {o.hint && <span className="zc-option-hint">{o.hint}</span>}
                   </Command.Item>
                 ))}

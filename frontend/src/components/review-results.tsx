@@ -1,4 +1,8 @@
 "use client";
+import { RouteState } from "@/components/ui/route-state";
+import { Disclosure } from "@/components/ui/controls";
+import { Callout, Hint } from "@/components/ui/feedback";
+import { StatCard, StatGrid } from "@/components/ui/stat";
 import { Select } from "./ui/select";
 import { useEffect, useRef, useState } from "react";
 import { formatPeriod, type Frequency } from "@/lib/dates";
@@ -83,10 +87,10 @@ export function ReviewResults({
   }
   if (!series)
     return (
-      <section className="route-state">
+      <RouteState kind="empty">
         <h2>No review item returned.</h2>
         <p>Choose other item or replay settings and run again.</p>
-      </section>
+      </RouteState>
     );
   const groups = reviewGroups(series);
   function eventCard(event: Event, category: string) {
@@ -117,7 +121,7 @@ export function ReviewResults({
           Actual {number(event.actual)} · Base case (P50){" "}
           {number(event.expected_p50)}
         </p>
-        <p className="health-note">
+        <Hint>
           P10:{" "}
           {event.expected_p10 === undefined
             ? "Not supplied"
@@ -126,7 +130,7 @@ export function ReviewResults({
           {event.expected_p90 === undefined
             ? "Not supplied"
             : number(event.expected_p90)}
-        </p>
+        </Hint>
         {event.recurring_as_expected && (
           <p className="review-expected-note">
             In line with forecast — the source reports this recurring event
@@ -185,47 +189,55 @@ export function ReviewResults({
         />
       </div>
 
-      <div className="health-stats">
-        <article>
-          <span>
-            {series.aggregation === "mean"
+      <StatGrid>
+        <StatCard
+          label={
+            series.aggregation === "mean"
               ? "Actual average per period"
-              : "Actual backtest total"}
-          </span>
-          <strong>
-            {series.actual_total === undefined
-              ? "Not supplied"
-              : number(series.actual_total)}
-          </strong>
-          <small>
-            {series.aggregation === "mean"
-              ? "Source mean over backtest periods"
-              : "Source aggregate for backtest periods"}
-          </small>
-        </article>
-        <article>
-          <span>
-            {series.aggregation === "mean"
+              : "Actual backtest total"
+          }
+          value={
+            <>
+              {series.actual_total === undefined
+                ? "Not supplied"
+                : number(series.actual_total)}
+            </>
+          }
+          hint={
+            <>
+              {series.aggregation === "mean"
+                ? "Source mean over backtest periods"
+                : "Source aggregate for backtest periods"}
+            </>
+          }
+        />
+        <StatCard
+          label={
+            series.aggregation === "mean"
               ? "Base case average per period"
-              : "Base case backtest total"}
-          </span>
-          <strong>
-            {series.expected_total === undefined
-              ? "Not supplied"
-              : number(series.expected_total)}
-          </strong>
-          <small>Source aggregate, not a sum of ranked events</small>
-        </article>
-        <article>
-          <span>Range accuracy</span>
-          <strong>
-            {series.band_coverage === undefined
-              ? "Not supplied"
-              : `${number(series.band_coverage * 100)}%`}
-          </strong>
-          <small>Coverage over backtest periods</small>
-        </article>
-      </div>
+              : "Base case backtest total"
+          }
+          value={
+            <>
+              {series.expected_total === undefined
+                ? "Not supplied"
+                : number(series.expected_total)}
+            </>
+          }
+          hint={<>Source aggregate, not a sum of ranked events</>}
+        />
+        <StatCard
+          label="Range accuracy"
+          value={
+            <>
+              {series.band_coverage === undefined
+                ? "Not supplied"
+                : `${number(series.band_coverage * 100)}%`}
+            </>
+          }
+          hint={<>Coverage over backtest periods</>}
+        />
+      </StatGrid>
 
       {synthetic || readOnly ? (
         <p className="demo-notice">
@@ -266,7 +278,7 @@ export function ReviewResults({
           {groups.positive.length ? (
             groups.positive.map((e) => eventCard(e, "Demand spike"))
           ) : (
-            <p className="health-table-empty">No demand spikes returned.</p>
+            <Callout tone="neutral">No demand spikes returned.</Callout>
           )}
         </section>
         <section aria-labelledby="misses-heading">
@@ -275,7 +287,7 @@ export function ReviewResults({
           {groups.misses.length ? (
             groups.misses.map((e) => eventCard(e, "Demand drop"))
           ) : (
-            <p className="health-table-empty">No demand drops returned.</p>
+            <Callout tone="neutral">No demand drops returned.</Callout>
           )}
         </section>
       </div>
@@ -289,14 +301,16 @@ export function ReviewResults({
           {groups.expected.length ? (
             groups.expected.map((e) => eventCard(e, "In line with forecast"))
           ) : (
-            <p className="health-table-empty">
+            <Callout tone="neutral">
               No recurring events were flagged as expected in this result.
-            </p>
+            </Callout>
           )}
         </div>
       </section>
-      <details className="provenance">
-        <summary>Where these results come from</summary>
+      <Disclosure
+        className="provenance"
+        summary={<>Where these results come from</>}
+      >
         <p>
           The review job replays historical forecast origins. Actual, expected
           P50, P10/P90, percentage deviation, calendar tags, coverage and totals
@@ -311,7 +325,7 @@ export function ReviewResults({
           Calendar dates are descriptive context. No rupee impact is estimated
           because the API does not supply price or revenue impact fields.
         </p>
-      </details>
+      </Disclosure>
       {editing && (
         <AnnotationDialog
           key={eventKey(editing.series, editing.event.date)}
@@ -401,9 +415,9 @@ function AnnotationDialog({
           disabled={mutation.isPending}
           onChange={(e) => setText(e.target.value)}
         />
-        <p className="health-note">
+        <Hint>
           {text.length}/500 characters · Saved for this dataset, item and date.
-        </p>
+        </Hint>
         {mutation.isError && (
           <p role="alert">{mutation.error.message} Your note is still here.</p>
         )}

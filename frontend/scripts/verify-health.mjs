@@ -1,3 +1,4 @@
+import { chooseOption } from "./lib/choose-option.mjs";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import { mkdir, readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
@@ -149,12 +150,12 @@ try {
   await page.getByRole("tab", { name: /^Missing dates/ }).press("Home");
   await page.getByRole("button", { name: /^History points/ }).click();
   await expect(page.locator("tbody th").first()).toHaveText("=SUM(1,1)");
-  await page.getByLabel("Status", { exact: true }).selectOption("warning");
+  await chooseOption(page, "Status", "warning");
   await expect(page.locator("tbody th")).toHaveText("Store-B");
   await page.getByLabel("Search series").fill("absent");
   await expect(page.getByText(/No series match this view/)).toBeVisible();
   await page.getByLabel("Search series").fill("");
-  await page.getByLabel("Status", { exact: true }).selectOption("all");
+  await chooseOption(page, "Status", "all");
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export visible rows" }).click();
   const download = await downloadPromise;

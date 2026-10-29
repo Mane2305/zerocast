@@ -1,4 +1,9 @@
 "use client";
+import { Sparkles } from "lucide-react";
+import { EmptyState } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/layout";
+import { RouteState } from "@/components/ui/route-state";
+import { Callout, Hint } from "@/components/ui/feedback";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,27 +45,31 @@ export function ReviewDemo({ id }: { id: string }) {
   });
   if (query.isPending)
     return (
-      <section className="route-state" role="status">
+      <RouteState kind="loading">
         <h1>Opening your saved review…</h1>
         <p>No backend or model run is needed.</p>
-      </section>
+      </RouteState>
     );
   if (query.isError)
     return (
-      <section className="route-state" role="alert">
+      <RouteState kind="error">
         <h1>Review demo unavailable</h1>
         <p>{query.error.message}</p>
         <Button onClick={() => query.refetch()}>Retry demo</Button>
-      </section>
+      </RouteState>
     );
   return (
     <div className="health-page">
-      <p className="eyebrow">
-        EXCEPTIONS ·{" "}
-        {findDemo(id)?.synthetic ? "SYNTHETIC DEMO" : "PRECOMPUTED REVIEW"}
-      </p>
-      <h1 className="forecast-title">Exceptions</h1>
-      <p>{query.data.dataset.name}</p>
+      <PageHeader
+        eyebrow={
+          <>
+            EXCEPTIONS ·{" "}
+            {findDemo(id)?.synthetic ? "SYNTHETIC DEMO" : "PRECOMPUTED REVIEW"}
+          </>
+        }
+        title={<>Exceptions</>}
+        description={query.data.dataset.name}
+      />
       <ReviewResults
         id={id}
         review={query.data.review}
@@ -85,18 +94,18 @@ export function ReviewWorkspace({
   });
   if (query.isPending)
     return (
-      <section className="route-state" role="status">
+      <RouteState kind="loading">
         <h1>Loading review inputs…</h1>
         <p>Reading the dataset and available item.</p>
-      </section>
+      </RouteState>
     );
   if (query.isError)
     return (
-      <section className="route-state" role="alert">
+      <RouteState kind="error">
         <h1>Review inputs unavailable</h1>
         <p>{query.error.message}</p>
         <Button onClick={() => query.refetch()}>Retry inputs</Button>
-      </section>
+      </RouteState>
     );
   return (
     <ReviewRunner
@@ -206,20 +215,22 @@ function ReviewRunner({
   }
   return (
     <div className="health-page">
-      <p className="eyebrow">EXCEPTIONS · HISTORICAL REPLAY</p>
-      <h1 className="forecast-title">Exceptions</h1>
-      <p>{dataset.name}</p>
+      <PageHeader
+        eyebrow="Exceptions · Historical Replay"
+        title={<>Exceptions</>}
+        description={dataset.name}
+      />
       <Link
         className="text-link"
         href={`/data-health/${encodeURIComponent(id)}`}
       >
         Review data health →
       </Link>
-      <p className="health-note">
+      <Hint>
         Holiday calendar:{" "}
         {dataset.holiday_country || "not selected for this dataset"}. Calendar
         matches come from the review service.
-      </p>
+      </Hint>
       <section className="forecast-parameters" aria-label="Review parameters">
         <fieldset disabled={active}>
           <legend className="sr-only">Items to review</legend>
@@ -263,21 +274,19 @@ function ReviewRunner({
             </Button>
           </div>
         </fieldset>
-        <p className="health-note">
+        <Hint>
           {invalid ||
             "Ready to replay. Up to five positive exceptions and five demand drops per item."}{" "}
           Replay can take longer than a single forecast.
-        </p>
+        </Hint>
       </section>
       {error && (
-        <p role="alert" className="health-table-empty">
+        <Callout tone="neutral" role="alert">
           {error}
-        </p>
+        </Callout>
       )}
       {!jobId && !submitting && (
-        <section className="forecast-empty">
-          <h2>Look back with perspective.</h2>
-        </section>
+        <EmptyState icon={Sparkles} title={<>Look back with perspective.</>} />
       )}
       {jobId && (
         <section className="forecast-job" aria-label="Review job">
@@ -331,10 +340,10 @@ function ReviewRunner({
                   {paused ? "Resume review polling" : "Pause review polling"}
                 </Button>
               )}
-              <p className="health-note">
+              <Hint>
                 Pausing stops status checks, not the server job. Reload this URL
                 to resume the same job.
-              </p>
+              </Hint>
             </>
           )}
           {job.data?.status === "failed" && (
@@ -356,10 +365,10 @@ function ReviewRunner({
       )}
       {result && !mismatch && (
         <>
-          <p className="health-note">
+          <Hint>
             Results belong to job {jobId}. Changed replay options apply to the
             next run.
-          </p>
+          </Hint>
           <ReviewResults
             key={jobId}
             review={result}

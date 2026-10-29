@@ -1,4 +1,7 @@
 "use client";
+import { SortHeader } from "@/components/ui/table";
+import { RouteState } from "@/components/ui/route-state";
+import { Disclosure } from "@/components/ui/controls";
 import { Select } from "./ui/select";
 import { useState } from "react";
 import dynamic from "next/dynamic";
@@ -95,12 +98,12 @@ export function AccuracyResults({
   }
   if (!item)
     return (
-      <div className="route-state">
+      <RouteState kind="empty">
         <p>No item scores returned.</p>
         <Button asChild>
           <Link href="/data">Choose dataset</Link>
         </Button>
-      </div>
+      </RouteState>
     );
   return (
     <div className="accuracy-results">
@@ -275,27 +278,18 @@ export function AccuracyResults({
                     ["coverage_p10_p90", "Range accuracy"],
                   ] as const
                 ).map(([key, label]) => (
-                  <th
+                  <SortHeader
                     key={key}
-                    aria-sort={
-                      sort === key
-                        ? descending
-                          ? "descending"
-                          : "ascending"
-                        : "none"
-                    }
-                  >
-                    <button
-                      onClick={() => {
-                        setSort(key);
-                        setDescending(
-                          sort === key ? !descending : key !== "series_id",
-                        );
-                      }}
-                    >
-                      {label} {sort === key ? (descending ? "↓" : "↑") : "↕"}
-                    </button>
-                  </th>
+                    label={label}
+                    active={sort === key}
+                    descending={descending}
+                    onSort={() => {
+                      setSort(key);
+                      setDescending(
+                        sort === key ? !descending : key !== "series_id",
+                      );
+                    }}
+                  />
                 ))}
                 <th>Naive WAPE</th>
                 <th>Vs baseline</th>
@@ -342,8 +336,10 @@ export function AccuracyResults({
           <p className="accuracy-empty">No items match this filter.</p>
         )}
       </section>
-      <details className="accuracy-values">
-        <summary>Chart values · {item.series_id}</summary>
+      <Disclosure
+        className="accuracy-values"
+        summary={<>Chart values · {item.series_id}</>}
+      >
         <div className="health-table-scroll">
           <table>
             <caption>Supplied calibration points</caption>
@@ -394,7 +390,7 @@ export function AccuracyResults({
             </tbody>
           </table>
         </div>
-      </details>
+      </Disclosure>
     </div>
   );
 }

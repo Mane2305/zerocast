@@ -197,7 +197,9 @@ export function MultiSelect({
                       <span className="zc-option-label">
                         {o.label ?? o.value}
                       </span>
-                      {o.hint && <span className="zc-option-hint">{o.hint}</span>}
+                      {o.hint && (
+                        <span className="zc-option-hint">{o.hint}</span>
+                      )}
                     </Command.Item>
                   );
                 })}

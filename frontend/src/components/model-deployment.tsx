@@ -1,4 +1,6 @@
 "use client";
+import { Callout, Hint } from "@/components/ui/feedback";
+import { StatCard, StatGrid } from "@/components/ui/stat";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -40,21 +42,21 @@ export function ModelDeployment() {
             : "Refresh deployment"}
         </Button>
       </div>
-      <p className="health-note">
+      <Hint>
         These values are reported by the configured API. A mock server can
         supply synthetic metadata and timings. This page does not run a forecast
         or verify weights.
-      </p>
+      </Hint>
       {health.isPending ? (
         <p role="status">Checking reported model status…</p>
       ) : health.isError ? (
-        <div role="alert" className="health-table-empty">
+        <Callout tone="danger">
           <h3>Model status unavailable</h3>
           <p>{health.error.message}</p>
           <Button variant="outline" onClick={() => health.refetch()}>
             Retry status
           </Button>
-        </div>
+        </Callout>
       ) : (
         <div
           className={`model-status${health.data.status === "degraded" || !health.data.model_loaded ? " is-warning" : ""}`}
@@ -69,23 +71,23 @@ export function ModelDeployment() {
               ? "API reports the model is loaded."
               : "API reports the model is not loaded."}
           </p>
-          <p className="health-note">
+          <Hint>
             Device: {health.data.device || "Not reported"} · API version:{" "}
             {health.data.version || "Not reported"}
-          </p>
+          </Hint>
         </div>
       )}
       {info.isPending ? (
-        <div className="health-table-empty" role="status">
+        <Callout tone="neutral" role="status">
           <h3>Loading model details…</h3>
           <p>Reading model metadata and recent latency measurements.</p>
-        </div>
+        </Callout>
       ) : info.isError ? (
-        <div role="alert" className="health-table-empty">
+        <Callout tone="danger">
           <h3>Deployment details unavailable</h3>
           <p>{info.error.message}</p>
           <Button onClick={() => info.refetch()}>Retry model details</Button>
-        </div>
+        </Callout>
       ) : (
         data && (
           <>
@@ -140,26 +142,27 @@ export function ModelDeployment() {
             >
               <h3 id="latency-heading">Recent latency</h3>
               {stats === "measured" ? (
-                <div className="health-stats">
-                  <article>
-                    <span>Median model call</span>
-                    <strong data-testid="model-latency">
-                      {number(data.latency_ms!.p50!)} ms
-                    </strong>
-                    <small>Rolling median supplied by the API</small>
-                  </article>
-                  <article>
-                    <span>Recorded calls</span>
-                    <strong>
-                      {data.latency_ms?.count === undefined
-                        ? "Not reported"
-                        : number(data.latency_ms.count)}
-                    </strong>
-                    <small>Count supplied with this snapshot</small>
-                  </article>
-                </div>
+                <StatGrid>
+                  <StatCard
+                    label="Median model call"
+                    value={<>{number(data.latency_ms!.p50!)} ms</>}
+                    valueProps={{ "data-testid": "model-latency" }}
+                    hint={<>Rolling median supplied by the API</>}
+                  />
+                  <StatCard
+                    label="Recorded calls"
+                    value={
+                      <>
+                        {data.latency_ms?.count === undefined
+                          ? "Not reported"
+                          : number(data.latency_ms.count)}
+                      </>
+                    }
+                    hint={<>Count supplied with this snapshot</>}
+                  />
+                </StatGrid>
               ) : (
-                <div className="health-table-empty">
+                <Callout tone="neutral">
                   <h4>
                     {stats === "empty"
                       ? "No measured model calls yet."
@@ -169,15 +172,15 @@ export function ModelDeployment() {
                   <Link className="text-link" href="/forecast">
                     Open Forecast →
                   </Link>
-                </div>
+                </Callout>
               )}
-              <p className="health-note">
+              <Hint>
                 Timings describe recent model calls, not upload, queue wait or
                 complete job duration. Hardware, history length, horizon and
                 sample count affect runtime. Missing measurements are not shown
                 as zero. Metadata is refreshed on request; no benchmark runs
                 automatically.
-              </p>
+              </Hint>
             </section>
           </>
         )

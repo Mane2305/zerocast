@@ -1,3 +1,4 @@
+import { chooseOption } from "./lib/choose-option.mjs";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import { mkdir, readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
@@ -163,15 +164,11 @@ try {
   await expect(page.locator("tbody th a").first()).toContainText(ids[1]);
   await page.getByRole("button", { name: /^Risk direction/ }).click();
   await expect(page.locator("tbody th a").first()).toContainText(ids[0]);
-  await page
-    .getByRole("combobox", { name: "Uncertainty label" })
-    .selectOption("unreported");
+  await chooseOption(page, "Uncertainty label", "unreported");
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await expect(page.locator("tbody")).toContainText(ids[1]);
   await page.getByRole("button", { name: "Clear filters" }).click();
-  await page
-    .getByRole("combobox", { name: "Risk direction", exact: true })
-    .selectOption("downside");
+  await chooseOption(page, "Risk direction", "downside");
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await shot("filtered");
   const pending = page.waitForEvent("download");

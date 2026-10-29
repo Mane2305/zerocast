@@ -1,4 +1,7 @@
 "use client";
+import { PageHeader } from "@/components/ui/layout";
+import { RouteState } from "@/components/ui/route-state";
+import { Disclosure } from "@/components/ui/controls";
 import Link from "next/link";
 import { useDatasetPreferences } from "@/lib/preferences";
 import { useState, useSyncExternalStore } from "react";
@@ -56,27 +59,29 @@ export function DemoPreview({
   );
   if (!hydrated || query.isPending)
     return (
-      <section className="route-state" role="status">
+      <RouteState kind="loading">
         <LoaderCircle size={26} className="animate-spin" />
         <h1>Opening your demo…</h1>
         <p>Loading the saved example. No model is running.</p>
-      </section>
+      </RouteState>
     );
   if (query.isError)
     return (
-      <section className="route-state" role="alert">
-        <p className="eyebrow">DEMO UNAVAILABLE</p>
-        <h1>We couldn’t open this demo.</h1>
-        <p>
-          {query.error instanceof TypeError
-            ? "The demo files are unreachable. Check your connection to this app and try again. These demos do not need the backend."
-            : query.error.message}
-        </p>
+      <RouteState kind="error">
+        <PageHeader
+          eyebrow="Demo Unavailable"
+          title={<>We couldn’t open this demo.</>}
+          description={
+            query.error instanceof TypeError
+              ? "The demo files are unreachable. Check your connection to this app and try again. These demos do not need the backend."
+              : query.error.message
+          }
+        />
         <div className="download-actions">
           <Button onClick={() => query.refetch()}>Try again</Button>
           {back}
         </div>
-      </section>
+      </RouteState>
     );
   const { dataset, forecast, histories } = query.data;
   const series =
@@ -84,11 +89,13 @@ export function DemoPreview({
   const history = histories.find((h) => h.series_id === series?.series_id);
   if (!series || series.dates.length === 0)
     return (
-      <section className="route-state">
-        <p className="eyebrow">NO SAVED RESULTS</p>
-        <h1>This demo has no forecast yet.</h1>
+      <RouteState kind="empty">
+        <PageHeader
+          eyebrow="No Saved Results"
+          title={<>This demo has no forecast yet.</>}
+        />
         {back}
-      </section>
+      </RouteState>
     );
   return (
     <div className="forecast-workspace demo-workspace">
@@ -141,8 +148,7 @@ export function DemoPreview({
           This saved forecast lacks the ordered quantiles required for planning.
         </p>
       )}
-      <details className="forecast-source">
-        <summary>Source data</summary>
+      <Disclosure className="forecast-source" summary={<>Source data</>}>
         <p>
           {demo.source || demo.note}{" "}
           {demo.sourceUrl && (
@@ -179,13 +185,17 @@ export function DemoPreview({
             Choose another dataset
           </Link>
         </div>
-      </details>
-      <details className="api-details">
-        <summary>
-          API connection status <span>Optional for saved demos</span>
-        </summary>
+      </Disclosure>
+      <Disclosure
+        className="api-details"
+        summary={
+          <>
+            API connection status <span>Optional for saved demos</span>
+          </>
+        }
+      >
         <ConnectionCheck />
-      </details>
+      </Disclosure>
     </div>
   );
 }

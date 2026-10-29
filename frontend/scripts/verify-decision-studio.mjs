@@ -1,3 +1,4 @@
+import { chooseOption } from "./lib/choose-option.mjs";
 import { chromium, expect } from "@playwright/test";
 import { readFile, mkdir } from "node:fs/promises";
 const base = process.env.VERIFY_URL || "http://localhost:3000";
@@ -30,7 +31,8 @@ try {
   await page.goto(base);
   await expect(page).toHaveURL(/\/forecast\/retail/);
   await expect(page.locator(".forecast-chart svg")).toBeVisible();
-  await expect(page.locator("html")).toHaveClass(/light/);
+  // The app follows the system theme (dark in this context).
+  await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(
     page.getByRole("heading", { name: "Forecast", exact: true }),
   ).toBeVisible();
@@ -51,7 +53,9 @@ try {
     page.getByText("Forecast error (WAPE)", { exact: true }),
   ).toHaveCount(0);
   await expect(page.locator(".workflow,.steps")).toHaveCount(0);
-  await expect(page.locator(".forecast-kpis")).not.toContainText("Unavailable");
+  await expect(page.getByLabel("Forecast overview")).not.toContainText(
+    "Unavailable",
+  );
   if (accuracy) {
     await expect(page.locator("[data-testid=forecast-error]")).toHaveText(
       `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(accuracy.series[0].wape)}%`,
@@ -95,9 +99,7 @@ try {
   await page.reload();
   await expect(page.locator("#service-level")).toHaveValue("75");
   await page.locator("#service-level").fill("80");
-  await page
-    .getByLabel("Item", { exact: true })
-    .selectOption(retail.series[0].series_id);
+  await chooseOption(page, "Item", retail.series[0].series_id);
   for (const [name, url, selector] of [
     ["forecast", "/forecast/retail", ".forecast-chart svg"],
     ["portfolio", "/portfolio/demo/retail", ".portfolio-table tbody tr"],
@@ -225,16 +227,16 @@ try {
     );
     await workspace.goto(base + "/forecast/dataset/v2-test");
     await expect(
-      workspace.locator(".forecast-series-picker input").first(),
+      workspace.getByRole("button", { name: "Items to forecast" }),
     ).toBeVisible();
     expect(submitted).toBe(0);
-    for (const input of await workspace
-      .locator(".forecast-series-picker input")
-      .all())
-      await input.check();
+    await workspace.getByRole("button", { name: "Items to forecast" }).click();
     await workspace
-      .getByLabel("Forecast horizon (periods)", { exact: true })
-      .fill("14");
+      .locator(".zc-popover")
+      .getByRole("button", { name: /^Select all/ })
+      .click();
+    await workspace.keyboard.press("Escape");
+    await workspace.getByLabel("Forecast horizon", { exact: true }).fill("14");
     await workspace
       .getByRole("button", { name: "Run forecast", exact: true })
       .click();

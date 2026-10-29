@@ -77,7 +77,11 @@ export function NumberField({
         </button>
       </div>
       {presets && presets.length > 0 && (
-        <div className="zc-presets" role="group" aria-label={`${label} presets`}>
+        <div
+          className="zc-presets"
+          role="group"
+          aria-label={`${label} presets`}
+        >
           {presets.map((p) => (
             <button
               key={p.value}

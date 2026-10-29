@@ -1,4 +1,6 @@
 "use client";
+import { Card } from "@/components/ui/layout";
+import { CHART } from "@/lib/chart-theme";
 import dynamic from "next/dynamic";
 import type { EChartsOption } from "echarts";
 import type { FactorResult } from "@/lib/factors";
@@ -8,9 +10,9 @@ const Chart = dynamic(() => import("./studio-chart"), {
   loading: () => <p role="status">Loading driver chart…</p>,
 });
 
-const GOOD = "#347e61";
-const BAD = "#c36b66";
-const NEUTRAL = "#8fa39a";
+const GOOD = CHART.good;
+const BAD = CHART.bad;
+const NEUTRAL = CHART.neutral;
 
 /** One horizontal bar per driver, so drivers compare at a glance. */
 function barOption(
@@ -33,7 +35,6 @@ function barOption(
       nameLocation: "middle",
       nameGap: 22,
       nameTextStyle: { fontSize: 11 },
-      splitLine: { lineStyle: { color: "#e3e8e5" } },
     },
     yAxis: {
       type: "category",
@@ -98,7 +99,7 @@ export function DriverCharts({ result }: { result: FactorResult }) {
         </InfoTip>
       </h2>
       <div className="driver-compare">
-        <article className="module-chart-card">
+        <Card className="module-chart-card">
           <h3>Historical link</h3>
           <p className="muted">Standardized effect at the best reported lag</p>
           {linked.length ? (
@@ -110,8 +111,8 @@ export function DriverCharts({ result }: { result: FactorResult }) {
           ) : (
             <p>Effects unavailable.</p>
           )}
-        </article>
-        <article className="module-chart-card">
+        </Card>
+        <Card className="module-chart-card">
           <h3>Forecast lift</h3>
           <p className="muted">Backtest error change · negative is better</p>
           {lift.length ? (
@@ -123,7 +124,7 @@ export function DriverCharts({ result }: { result: FactorResult }) {
           ) : (
             <p>Backtest change unavailable.</p>
           )}
-        </article>
+        </Card>
       </div>
     </section>
   );

@@ -1,3 +1,4 @@
+import { chooseOption } from "./lib/choose-option.mjs";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import { readFile, mkdir } from "node:fs/promises";
 import assert from "node:assert/strict";
@@ -56,9 +57,7 @@ try {
   await page.mouse.up();
   await expect(chart).toContainText(/2009/);
   await shot("full-history-slider");
-  await page
-    .getByLabel("View series", { exact: true })
-    .selectOption("CANDLES & T-LIGHTS");
+  await chooseOption(page, "View series", "CANDLES & T-LIGHTS");
   await expect(page.locator(".forecast-context .lede")).toContainText(
     "CANDLES & T-LIGHTS",
   );
@@ -69,7 +68,7 @@ try {
 
   await page.goto(`${base}/forecast/manufacturing`);
   await expect(page.locator(".plan-headline")).toContainText("average");
-  await expect(page.locator(".forecast-kpis")).toContainText(
+  await expect(page.getByLabel("Forecast overview")).toContainText(
     "Expected average per period",
   );
   await expect(page.getByLabel("Target total", { exact: true })).toHaveCount(0);

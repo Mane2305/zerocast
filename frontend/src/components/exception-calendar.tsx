@@ -1,4 +1,6 @@
 "use client";
+import { Card } from "@/components/ui/layout";
+import { CHART } from "@/lib/chart-theme";
 import { Select } from "./ui/select";
 import { useState } from "react";
 import dynamic from "next/dynamic";
@@ -72,7 +74,7 @@ export function ExceptionCalendar({
                 b.actual[i]! < b.p10[i] ? -1 : b.actual[i]! > b.p90[i] ? 1 : 0,
               ],
               label: events.has(date.slice(0, 10))
-                ? { show: true, formatter: "◊", color: "#754a12" }
+                ? { show: true, formatter: "◊", color: CHART.event }
                 : { show: false },
             },
           ],
@@ -102,9 +104,9 @@ export function ExceptionCalendar({
       left: "center",
       bottom: 0,
       pieces: [
-        { value: -1, label: "Demand drop", color: "#c36b66" },
-        { value: 0, label: "Inside range", color: "#c8d1cc" },
-        { value: 1, label: "Demand spike", color: "#38966e" },
+        { value: -1, label: "Demand drop", color: CHART.bad },
+        { value: 0, label: "Inside range", color: CHART.neutral },
+        { value: 1, label: "Demand spike", color: CHART.good },
       ],
     },
     ...(daily
@@ -116,7 +118,6 @@ export function ExceptionCalendar({
             range,
             cellSize: ["auto", 22],
             splitLine: { show: false },
-            itemStyle: { color: "transparent", borderColor: "#e0e5e1" },
             yearLabel: { show: false },
           },
           series: [
@@ -140,7 +141,7 @@ export function ExceptionCalendar({
         }),
   };
   return (
-    <section className="module-chart-card">
+    <Card className="module-chart-card">
       <div className="module-chart-heading">
         <h2>
           Exceptions calendar{" "}
@@ -184,7 +185,7 @@ export function ExceptionCalendar({
       <small>
         Only supplied periods are colored · {year || "No year supplied"}
       </small>
-    </section>
+    </Card>
   );
 }
 

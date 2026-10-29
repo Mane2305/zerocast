@@ -37,3 +37,18 @@ The 100k-row case, RTL, malformed/duplicate headers, API failures during upload,
 - Search uses a deferred value, and affected-item matching uses a memoized set to avoid repeated linear array lookups for every row.
 - Verified with a synthetic 130-item API report: pages contained 50, 50, and 30 rows; searching found the final item; the 320px page had no horizontal overflow.
 - This does not prove the 100k-item case; client filtering and sorting still process the full supplied list.
+
+## Phase 3: component library (design system)
+
+- `src/components/ui/`: Button (sizes), Select, MultiSelect, NumberField, TextField, Switch, Segmented,
+  Disclosure, PageHeader, Section, Card/CardHeader, StatGrid/StatCard, Callout, Hint, Badge,
+  StatusPill, EmptyState, Skeleton/PageSkeleton, RouteState, TableContainer/SortHeader/Pagination.
+- `src/lib/chart-theme.ts`: one chart palette plus registered `zc-light` / `zc-dark` ECharts themes;
+  no hard-coded colors remain in components.
+- Pages use the components for headings, KPIs, notes, errors, empty/loading states, panels,
+  sortable headers and pagination. 131 dead CSS rules from earlier prototypes were removed.
+- Checked: 18 routes × 360/768/1280/1920 px light + 1440/390 px dark (108 checks, no horizontal
+  overflow, no page errors); lint, typecheck, build and the 29 unit tests pass.
+- The `verify-*.mjs` Playwright scripts were moved to `scripts/lib/choose-option.mjs` for the new
+  dropdowns, but several assertions were already stale before this phase (e.g. "Last backtest"
+  checked by default, a 20px h1); they need a separate pass before they can gate releases.

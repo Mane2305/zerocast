@@ -154,7 +154,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
       return;
     }
     router.push(
-      "/forecast/" + datasetId + "?" + new URLSearchParams({ series: seriesId }),
+      "/forecast/" +
+        datasetId +
+        "?" +
+        new URLSearchParams({ series: seriesId }),
     );
   }
   const status = !apiConfigured

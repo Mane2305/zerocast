@@ -1,4 +1,7 @@
 "use client";
+import { RouteState } from "@/components/ui/route-state";
+import { Disclosure } from "@/components/ui/controls";
+import { Hint } from "@/components/ui/feedback";
 import { useMemo, useState } from "react";
 import { formatPeriod, type Frequency } from "@/lib/dates";
 import { valueFormatter, countUnits } from "@/lib/numbers";
@@ -83,13 +86,13 @@ export function ForecastResults({
   );
   if (!series || !series.dates.length)
     return (
-      <section className="route-state">
+      <RouteState kind="empty">
         <h2>No forecast periods returned</h2>
         <p>
           The job finished without usable periods. Review the input and run
           again.
         </p>
-      </section>
+      </RouteState>
     );
   const format = (v: number) =>
     valueFormatter({
@@ -99,10 +102,10 @@ export function ForecastResults({
   const total = series.total_distribution.percentiles;
   if (series.total_distribution.aggregation !== (average ? "mean" : "sum"))
     return (
-      <section role="alert" className="route-state">
+      <RouteState kind="error">
         <h2>Forecast aggregation does not match the dataset</h2>
         <p>Reload corrected results before planning with this forecast.</p>
-      </section>
+      </RouteState>
     );
   const grid = series.step_exceedance_grid?.percentiles;
   const targetNumber = target.trim() ? Number(target) : NaN;
@@ -164,7 +167,10 @@ export function ForecastResults({
                   have a fixed horizon.
                 </InfoTip>
               </span>
-              <span className="zc-static-value" aria-label="Saved forecast horizon">
+              <span
+                className="zc-static-value"
+                aria-label="Saved forecast horizon"
+              >
                 {series.dates.length} {horizonUnit(frequency)}
                 {saved && <span className="zc-badge">Saved · fixed</span>}
               </span>
@@ -222,13 +228,17 @@ export function ForecastResults({
             </InfoTip>
           </h3>
         </div>
-        <details className="forecast-comparisons">
-          <summary>
-            Compare
-            {showLastYear || showBacktest || showPaths
-              ? ` · ${Number(showLastYear && !!series.last_year) + Number(showBacktest && points.length > 0) + Number(showPaths && paths.length > 0)} on`
-              : ""}
-          </summary>
+        <Disclosure
+          className="forecast-comparisons"
+          summary={
+            <>
+              Compare
+              {showLastYear || showBacktest || showPaths
+                ? ` · ${Number(showLastYear && !!series.last_year) + Number(showBacktest && points.length > 0) + Number(showPaths && paths.length > 0)} on`
+                : ""}
+            </>
+          }
+        >
           <div className="chart-toggles">
             {series.last_year && (
               <label>
@@ -282,7 +292,7 @@ export function ForecastResults({
               <span>No comparisons supplied for this item.</span>
             )}
           </div>
-        </details>
+        </Disclosure>
       </div>
       <Chart
         series={series}
@@ -321,16 +331,14 @@ export function ForecastResults({
           Export forecast CSV
         </Button>
       </div>
-      {historyNote && (
-        <p className="health-note" role="status">
-          {historyNote}
-        </p>
-      )}
+      {historyNote && <Hint role="status">{historyNote}</Hint>}
       {reviewNote && (
-        <details className="review-note">
-          <summary>Range accuracy status</summary>
+        <Disclosure
+          className="review-note"
+          summary={<>Range accuracy status</>}
+        >
           <p>{reviewNote}</p>
-        </details>
+        </Disclosure>
       )}
       <div className="scenario-row" aria-label="Planning cases">
         {[
@@ -429,8 +437,7 @@ export function ForecastResults({
           )}
         </section>
       </div>
-      <details className="provenance">
-        <summary>Why these numbers?</summary>
+      <Disclosure className="provenance" summary={<>Why these numbers?</>}>
         <p>
           Scenario cards and the plan use total_distribution.percentiles[10, 50,
           90] and [{level}] from sample paths. Per-period quantiles are never
@@ -449,9 +456,11 @@ export function ForecastResults({
           seasonal alignment. Latency is per item, not total job wait time.
           Values are in the dataset’s units.
         </p>
-      </details>
-      <details className="forecast-values">
-        <summary>View forecast values</summary>
+      </Disclosure>
+      <Disclosure
+        className="forecast-values"
+        summary={<>View forecast values</>}
+      >
         <div className="health-table-scroll" tabIndex={0}>
           <table>
             <caption>Per-period values · {series.series_id}</caption>
@@ -487,7 +496,7 @@ export function ForecastResults({
             </tbody>
           </table>
         </div>
-      </details>
+      </Disclosure>
     </section>
   );
 }

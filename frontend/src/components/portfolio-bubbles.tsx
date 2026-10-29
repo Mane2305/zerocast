@@ -1,4 +1,7 @@
 "use client";
+import { Card } from "@/components/ui/layout";
+import { Hint } from "@/components/ui/feedback";
+import { CHART } from "@/lib/chart-theme";
 import dynamic from "next/dynamic";
 import type { EChartsOption } from "echarts";
 import type { SeriesForecast } from "@/lib/forecast";
@@ -62,7 +65,10 @@ export function PortfolioBubbles({
     series: (["upside", "downside", "balanced"] as const).map((risk, i) => ({
       name: risk,
       type: "scatter",
-      itemStyle: { color: ["#247955", "#b24b47", "#7a8394"][i], opacity: 0.75 },
+      itemStyle: {
+        color: [CHART.good, CHART.bad, CHART.neutral][i],
+        opacity: 0.75,
+      },
       data: plottedRows
         .filter((s) => s.risk.risk_direction === risk)
         .map((s) => ({
@@ -81,7 +87,7 @@ export function PortfolioBubbles({
     })),
   };
   return (
-    <section className="module-chart-card">
+    <Card className="module-chart-card">
       <h2>
         Portfolio demand risk{" "}
         <InfoTip label="Portfolio bubble definition">
@@ -95,11 +101,11 @@ export function PortfolioBubbles({
       {rows.length ? (
         <>
           {rows.length > MAX_PORTFOLIO_BUBBLES && (
-            <p className="health-note" role="status">
+            <Hint role="status">
               Showing the {MAX_PORTFOLIO_BUBBLES} most variable items on this
               chart. The table and export include all {rows.length} matching
               items.
-            </p>
+            </Hint>
           )}
           <Chart
             option={option}
@@ -110,6 +116,6 @@ export function PortfolioBubbles({
       ) : (
         <p>No items match this view.</p>
       )}
-    </section>
+    </Card>
   );
 }

@@ -1,4 +1,9 @@
 "use client";
+import {
+  chartStructure,
+  registerChartThemes,
+  themeName,
+} from "@/lib/chart-theme";
 import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import * as echarts from "echarts/core";
@@ -42,11 +47,17 @@ export default function StudioChart({
   const { resolvedTheme } = useTheme();
   useEffect(() => {
     if (!ref.current) return;
-    const chart = echarts.init(ref.current, undefined, { renderer: "svg" });
+    registerChartThemes();
+    const chart = echarts.init(
+      ref.current,
+      themeName(resolvedTheme === "dark"),
+      {
+        renderer: "svg",
+      },
+    );
     chart.setOption({
       animation: false,
       aria: { enabled: true },
-      textStyle: { color: resolvedTheme === "dark" ? "#b4c7bb" : "#526259" },
       ...option,
     });
     chart.on("click", (event) => {
@@ -65,7 +76,7 @@ export default function StudioChart({
     const img = new Image();
     img.src = chart.getDataURL({
       type: "svg",
-      backgroundColor: resolvedTheme === "dark" ? "#17251d" : "#ffffff",
+      backgroundColor: chartStructure(resolvedTheme === "dark").surface,
     });
     await img.decode();
     const canvas = document.createElement("canvas");

@@ -1,3 +1,4 @@
+import { chooseOption } from "./lib/choose-option.mjs";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import { mkdir, readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
@@ -198,9 +199,7 @@ try {
   await expect(
     page.getByRole("button", { name: "Run factor check", exact: true }),
   ).toBeDisabled();
-  await page
-    .getByRole("combobox", { name: "Series", exact: true })
-    .selectOption("A");
+  await chooseOption(page, "Item", "A");
   await expect(page.locator('option[value="Excluded"]')).toHaveJSProperty(
     "disabled",
     true,
@@ -261,17 +260,13 @@ try {
     "Interval scale and confidence level were not specified",
   );
   await shot("desktop");
-  await page
-    .getByRole("combobox", { name: "Verdict", exact: true })
-    .selectOption("probably_drop");
+  await chooseOption(page, "Verdict", "probably_drop");
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await expect(
     page.locator("tbody td > strong").filter({ hasText: "Not reported" }),
   ).toHaveCount(2);
   await shot("optional-fields");
-  await page
-    .getByRole("combobox", { name: "Verdict", exact: true })
-    .selectOption("real_driver_yug_cannot_use");
+  await chooseOption(page, "Verdict", "real_driver_yug_cannot_use");
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export visible factors" }).click();
   const csv = await readFile(await (await pending).path(), "utf8");
@@ -286,9 +281,7 @@ try {
     page.getByRole("button", { name: "Export visible factors" }),
   ).toBeDisabled();
   await page.getByLabel("Search factors", { exact: true }).fill("");
-  await page
-    .getByRole("combobox", { name: "Verdict", exact: true })
-    .selectOption("all");
+  await chooseOption(page, "Verdict", "all");
   await page.getByRole("button", { name: /^Factor [↑↓]/ }).click();
   await expect(page.locator("tbody th").first()).toHaveText("weather_history");
   await page.setViewportSize({ width: 390, height: 844 });
@@ -349,9 +342,7 @@ try {
   noFactors = false;
   await page.reload();
   postFails = true;
-  await page
-    .getByRole("combobox", { name: "Series", exact: true })
-    .selectOption("A");
+  await chooseOption(page, "Item", "A");
   await page.getByRole("checkbox", { name: names[0], exact: true }).check();
   await page
     .getByRole("button", { name: "Run factor check", exact: true })

@@ -1,4 +1,9 @@
 "use client";
+import { Sparkles } from "lucide-react";
+import { EmptyState } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/layout";
+import { RouteState } from "@/components/ui/route-state";
+import { Callout, Hint } from "@/components/ui/feedback";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,24 +48,26 @@ export function FactorDemo() {
   });
   if (query.isPending)
     return (
-      <section className="route-state" role="status">
+      <RouteState kind="loading">
         <h1>Opening the driver example…</h1>
         <p>No backend or model run is needed.</p>
-      </section>
+      </RouteState>
     );
   if (query.isError)
     return (
-      <section className="route-state" role="alert">
+      <RouteState kind="error">
         <h1>driver example unavailable</h1>
         <p>{query.error.message}</p>
         <Button onClick={() => query.refetch()}>Retry example</Button>
-      </section>
+      </RouteState>
     );
   return (
     <div className="health-page">
-      <p className="eyebrow">DRIVERS · PRECOMPUTED CEMENT DEMO</p>
-      <h1 className="forecast-title">Drivers</h1>
-      <p>{query.data.dataset.name}</p>
+      <PageHeader
+        eyebrow="Drivers · Precomputed Cement Demo"
+        title={<>Drivers</>}
+        description={query.data.dataset.name}
+      />
       <p className="demo-notice">
         Saved cement driver checks · no new model run.
       </p>
@@ -84,18 +91,18 @@ export function FactorWorkspace({
   });
   if (query.isPending)
     return (
-      <section className="route-state" role="status">
+      <RouteState kind="loading">
         <h1>Loading driver inputs…</h1>
         <p>Reading the available item and driver columns.</p>
-      </section>
+      </RouteState>
     );
   if (query.isError)
     return (
-      <section className="route-state" role="alert">
+      <RouteState kind="error">
         <h1>driver inputs unavailable</h1>
         <p>{query.error.message}</p>
         <Button onClick={() => query.refetch()}>Retry inputs</Button>
-      </section>
+      </RouteState>
     );
   return (
     <FactorRunner
@@ -214,11 +221,15 @@ function FactorRunner({
   }
   return (
     <div className="health-page">
-      <p className="eyebrow">DRIVERS · HISTORICAL VALUES ONLY</p>
-      <h1 className="forecast-title">Drivers</h1>
-      <p>
-        Check a statistical relationship and forecast usefulness separately.
-      </p>
+      <PageHeader
+        eyebrow="Drivers · Historical Values Only"
+        title={<>Drivers</>}
+        description={
+          <>
+            Check a statistical relationship and forecast usefulness separately.
+          </>
+        }
+      />
       <Link
         className="text-link"
         href={`/data-health/${encodeURIComponent(id)}`}
@@ -227,7 +238,9 @@ function FactorRunner({
       </Link>
       <section className="forecast-parameters" aria-label="Drivers parameters">
         <fieldset disabled={active}>
-          <legend className="sr-only">Choose one item and up to ten drivers</legend>
+          <legend className="sr-only">
+            Choose one item and up to ten drivers
+          </legend>
           <div className="zc-form-grid">
             <Select
               label="Item"
@@ -271,24 +284,25 @@ function FactorRunner({
             {submitting ? "Submitting…" : "Run driver check"}
           </Button>
         </fieldset>
-        <p className="health-note">
+        <Hint>
           {invalid ||
             "Ready to check. The backtest compares sales-only with one driver at a time."}
-        </p>
-        <p className="health-note">
+        </Hint>
+        <Hint>
           Sales-only remains the default. Historical drivers cannot describe the
           effect of future promotions or planned changes.
-        </p>
+        </Hint>
       </section>
       {error && (
-        <p role="alert" className="health-table-empty">
+        <Callout tone="neutral" role="alert">
           {error}
-        </p>
+        </Callout>
       )}
       {!jobId && !submitting && (
-        <section className="forecast-empty">
-          <h2>Start with two separate questions.</h2>
-        </section>
+        <EmptyState
+          icon={Sparkles}
+          title={<>Start with two separate questions.</>}
+        />
       )}
       {jobId && (
         <section className="forecast-job" aria-label="driver job">
@@ -342,10 +356,10 @@ function FactorRunner({
                   {paused ? "Resume driver polling" : "Pause driver polling"}
                 </Button>
               )}
-              <p className="health-note">
+              <Hint>
                 Pausing stops status checks, not the server job. Reload this URL
                 to resume the same job.
-              </p>
+              </Hint>
             </>
           )}
           {job.data?.status === "failed" && (
@@ -367,10 +381,10 @@ function FactorRunner({
       )}
       {result && !mismatch && (
         <>
-          <p className="health-note">
+          <Hint>
             Results belong to job {jobId}. Changed settings apply when you run
             another check.
-          </p>
+          </Hint>
           <FactorResults
             key={jobId}
             result={result}

@@ -1,4 +1,10 @@
 "use client";
+import {
+  chartStructure,
+  primaryFor,
+  registerChartThemes,
+  themeName,
+} from "@/lib/chart-theme";
 import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import * as echarts from "echarts/core";
@@ -41,9 +47,16 @@ export default function AccuracyChart({
   const { resolvedTheme } = useTheme();
   useEffect(() => {
     if (!ref.current) return;
-    const chart = echarts.init(ref.current, undefined, { renderer: "svg" });
-    const color = resolvedTheme === "dark" ? "#8dd7b4" : "#23684f",
-      muted = resolvedTheme === "dark" ? "#b4c7bb" : "#62706a";
+    registerChartThemes();
+    const chart = echarts.init(
+      ref.current,
+      themeName(resolvedTheme === "dark"),
+      {
+        renderer: "svg",
+      },
+    );
+    const color = primaryFor(resolvedTheme === "dark"),
+      muted = chartStructure(resolvedTheme === "dark").text;
     const format = valueFormatter({ country, unit });
     const points = [...item.quantile_coverage]
       .filter((p) => p.level >= 0.1 && p.level <= 0.9)
@@ -223,7 +236,7 @@ export default function AccuracyChart({
     const img = new Image();
     img.src = chart.getDataURL({
       type: "svg",
-      backgroundColor: resolvedTheme === "dark" ? "#17251d" : "#ffffff",
+      backgroundColor: chartStructure(resolvedTheme === "dark").surface,
     });
     await img.decode();
     const canvas = document.createElement("canvas");

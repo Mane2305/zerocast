@@ -1,3 +1,4 @@
+import { chooseOption } from "./lib/choose-option.mjs";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import { mkdir, readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
@@ -235,15 +236,11 @@ try {
   await expect(
     page.getByRole("region", { name: "Capacity risks" }),
   ).toContainText("0–1%");
-  await page
-    .getByRole("combobox", { name: "Number display" })
-    .selectOption("INR");
+  await chooseOption(page, "Number display", "INR");
   await expect(page.getByTestId("plan-value")).toContainText("₹");
-  await page
-    .getByRole("combobox", { name: "Number display" })
-    .selectOption("units");
+  await chooseOption(page, "Number display", "units");
   await shot("desktop");
-  await page.getByRole("combobox", { name: "View series" }).selectOption("B");
+  await chooseOption(page, "View series", "B");
   await expect(page.getByTestId("total-50")).toHaveText("2,050");
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export forecast CSV" }).click();

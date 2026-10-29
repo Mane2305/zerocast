@@ -3,7 +3,9 @@ import type { PickerOption } from "@/components/ui/multi-select";
 type SeriesLike = { series_id: string; status?: string | null };
 
 /** Dataset items as picker options; excluded items stay visible but disabled. */
-export function seriesOptions(series: SeriesLike[] | null | undefined): PickerOption[] {
+export function seriesOptions(
+  series: SeriesLike[] | null | undefined,
+): PickerOption[] {
   return (series ?? []).map((s) => ({
     value: s.series_id,
     hint: s.status === "ready" ? undefined : (s.status ?? undefined),

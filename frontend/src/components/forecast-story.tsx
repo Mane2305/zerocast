@@ -1,4 +1,6 @@
 "use client";
+import { StatCard, StatGrid } from "./ui/stat";
+import { Badge } from "./ui/feedback";
 import { InfoTip } from "./info-tip";
 import { periodUnit, type ReviewSeries } from "@/lib/forecast-story";
 import type { SeriesForecast } from "@/lib/forecast";
@@ -47,93 +49,91 @@ export function ForecastStory({
             the chosen service level. A model estimate, not a guarantee.
           </InfoTip>
         </h2>
-        {synthetic && <span className="badge">Synthetic example</span>}
+        {synthetic && <Badge tone="info">Synthetic example</Badge>}
       </header>
-      <dl className="forecast-kpis" aria-label="Forecast overview">
-        <div>
-          <dt>
-            Base case (P50)
+      <StatGrid aria-label="Forecast overview">
+        <StatCard
+          label="Base case (P50)"
+          info={
             <InfoTip label="Base case definition">
               The middle forecast: actual demand is equally likely to be above
               or below it. Uses the supplied horizon distribution.
             </InfoTip>
-          </dt>
-          <dd data-testid="total-50">{format.format(distribution[50])}</dd>
-          <small>{average ? "Average per period" : "Horizon total"}</small>
-        </div>
-        <div>
-          <dt>
-            Forecast range
+          }
+          value={format.format(distribution[50])}
+          valueProps={{ "data-testid": "total-50" }}
+          hint={average ? "Average per period" : "Horizon total"}
+        />
+        <StatCard
+          label="Forecast range"
+          info={
             <InfoTip label="Forecast range definition">
               Low case (P10) to high case (P90); intended to cover about 8 in 10
               outcomes.
             </InfoTip>
-          </dt>
-          <dd className="kpi-range">
-            <span data-testid="total-10">
-              {format.format(distribution[10])}
-            </span>
-            –
-            <span data-testid="total-90">
-              {format.format(distribution[90])}
-            </span>
-          </dd>
-          <small>
-            {average ? "Average per period" : "Horizon total"} · P10–P90
-          </small>
-        </div>
+          }
+          value={
+            <>
+              <span data-testid="total-10">
+                {format.format(distribution[10])}
+              </span>
+              {" – "}
+              <span data-testid="total-90">
+                {format.format(distribution[90])}
+              </span>
+            </>
+          }
+          hint={`${average ? "Average per period" : "Horizon total"} · P10–P90`}
+        />
         {coverage !== undefined && (
-          <div className={coverage < 0.8 ? "kpi-caution" : ""}>
-            <dt>
-              Range accuracy
+          <StatCard
+            label="Range accuracy"
+            tone={coverage < 0.8 ? "warning" : undefined}
+            info={
               <InfoTip label="Range accuracy definition">
                 Share of past actuals inside the forecast range. Target ≈ 80%.
                 Supplied historical backtest coverage, not a guarantee.
               </InfoTip>
-            </dt>
-            <dd data-testid="review-coverage">
-              {metric.format(coverage * 100)}%
-            </dd>
-            <small>Target 80%</small>
-          </div>
+            }
+            value={`${metric.format(coverage * 100)}%`}
+            valueProps={{ "data-testid": "review-coverage" }}
+            hint="Target 80%"
+          />
+        )}
+        {!synthetic && accuracy && (
+          <StatCard
+            label="Forecast error"
+            info={
+              <InfoTip label="Forecast error WAPE definition">
+                Total absolute error divided by total absolute actual demand, in
+                %. Lower is better. Supplied by the backtest; not recalculated
+                from ranked exceptions.
+              </InfoTip>
+            }
+            value={`${metric.format(accuracy.wape)}%`}
+            valueProps={{ "data-testid": "forecast-error" }}
+            hint="WAPE · backtest"
+          />
         )}
         {!synthetic && (
-          <>
-            {accuracy && (
-              <div>
-                <dt>
-                  Forecast error{" "}
-                  <InfoTip label="Forecast error WAPE definition">
-                    Total absolute error divided by total absolute actual
-                    demand, in %. Lower is better. Supplied by the backtest; not
-                    recalculated from ranked exceptions.
-                  </InfoTip>
-                </dt>
-                <dd data-testid="forecast-error">
-                  {metric.format(accuracy.wape)}%
-                </dd>
-                <small>WAPE · backtest</small>
-              </div>
-            )}
-            <div>
-              <dt>
-                Run time
-                <InfoTip label="Zero-shot definition">
-                  The model forecasts your data without being trained on it.
-                  Recorded model call time excludes queue wait; saved demos do
-                  not start a new run.
-                </InfoTip>
-              </dt>
-              <dd>
-                {series.latency_ms < 1000
-                  ? metric.format(series.latency_ms) + " ms"
-                  : metric.format(series.latency_ms / 1000) + " s"}
-              </dd>
-              <small>Zero-shot · no training</small>
-            </div>
-          </>
+          <StatCard
+            label="Run time"
+            info={
+              <InfoTip label="Zero-shot definition">
+                The model forecasts your data without being trained on it.
+                Recorded model call time excludes queue wait; saved demos do not
+                start a new run.
+              </InfoTip>
+            }
+            value={
+              series.latency_ms < 1000
+                ? metric.format(series.latency_ms) + " ms"
+                : metric.format(series.latency_ms / 1000) + " s"
+            }
+            hint="Zero-shot · no training"
+          />
         )}
-      </dl>
+      </StatGrid>
     </>
   );
 }

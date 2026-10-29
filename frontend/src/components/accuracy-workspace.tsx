@@ -1,4 +1,8 @@
 "use client";
+import { PageHeader } from "@/components/ui/layout";
+import { RouteState } from "@/components/ui/route-state";
+import { Disclosure } from "@/components/ui/controls";
+import { Hint } from "@/components/ui/feedback";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -51,10 +55,10 @@ export function AccuracyDemo({ id }: { id: string }) {
     );
   return (
     <div className="accuracy-page">
-      <header className="page-heading">
-        <h1>Accuracy</h1>
-        <p>{query.data.dataset.name} · saved backtest</p>
-      </header>
+      <PageHeader
+        title={<>Accuracy</>}
+        description={<>{query.data.dataset.name} · saved backtest</>}
+      />
       <AccuracyResults
         result={query.data.result}
         selected={preferences.selected || ""}
@@ -76,10 +80,10 @@ export function AccuracyDemo({ id }: { id: string }) {
 }
 function Loading() {
   return (
-    <section className="route-state" role="status">
+    <RouteState kind="loading">
       <h1>Accuracy</h1>
       <p>Loading accuracy inputs…</p>
-    </section>
+    </RouteState>
   );
 }
 function AccuracyError({
@@ -90,14 +94,14 @@ function AccuracyError({
   retry: () => void;
 }) {
   return (
-    <section className="route-state" role="alert">
+    <RouteState kind="error">
       <h1>Accuracy unavailable</h1>
       <p>{message}</p>
       <Button onClick={retry}>Retry accuracy</Button>
       <Link className="text-link accuracy-back" href="/data">
         Choose dataset
       </Link>
-    </section>
+    </RouteState>
   );
 }
 export function AccuracyWorkspace({
@@ -239,12 +243,12 @@ function AccuracyRunner({
   }
   return (
     <div className="accuracy-page">
-      <header className="page-heading">
-        <h1>Accuracy</h1>
-        <p>{dataset.name}</p>
-      </header>
-      <details className="accuracy-run-panel" open={!result || mismatch}>
-        <summary>Backtest settings</summary>
+      <PageHeader title={<>Accuracy</>} description={<>{dataset.name}</>} />
+      <Disclosure
+        className="accuracy-run-panel"
+        open={!result || mismatch}
+        summary={<>Backtest settings</>}
+      >
         <div className="accuracy-run-grid">
           <fieldset disabled={active}>
             <legend className="sr-only">Items to score</legend>
@@ -291,12 +295,12 @@ function AccuracyRunner({
             <Button onClick={run} disabled={!!issue || active}>
               {submitting ? "Submitting…" : "Run accuracy"}
             </Button>
-            <p className="health-note">
+            <Hint>
               {issue || "Ready to run · no new job until you click Run."}
-            </p>
+            </Hint>
           </div>
         </div>
-      </details>
+      </Disclosure>
       {error && (
         <p role="alert" className="upload-error">
           {error}

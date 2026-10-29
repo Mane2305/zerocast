@@ -1,4 +1,10 @@
 "use client";
+import { SortHeader } from "@/components/ui/table";
+import { PageHeader } from "@/components/ui/layout";
+import { RouteState } from "@/components/ui/route-state";
+import { Disclosure } from "@/components/ui/controls";
+import { Callout, Hint } from "@/components/ui/feedback";
+import { StatCard, StatGrid } from "@/components/ui/stat";
 import { Select } from "./ui/select";
 import { InfoTip } from "./info-tip";
 import { formatPeriod } from "@/lib/dates";
@@ -99,18 +105,20 @@ export function PortfolioJob({ id, jobId }: { id: string; jobId: string }) {
     );
   if (job.data.status !== "succeeded")
     return (
-      <section className="route-state">
-        <p className="eyebrow">PORTFOLIO</p>
-        <h1>
-          {job.data.status === "failed"
-            ? "This forecast failed."
-            : "The forecast is still in progress."}
-        </h1>
-        <p>
-          {job.data.error?.message ||
+      <RouteState kind="empty">
+        <PageHeader
+          eyebrow="Portfolio"
+          title={
+            job.data.status === "failed"
+              ? "This forecast failed."
+              : "The forecast is still in progress."
+          }
+          description={
+            job.data.error?.message ||
             job.data.message ||
-            "Portfolio is available after a forecast completes."}
-        </p>
+            "Portfolio is available after a forecast completes."
+          }
+        />
         <p>Progress: {job.data.progress}%</p>
         <div className="download-actions">
           <Button asChild>
@@ -124,7 +132,7 @@ export function PortfolioJob({ id, jobId }: { id: string; jobId: string }) {
             Refresh status
           </Button>
         </div>
-      </section>
+      </RouteState>
     );
   if (!validForecast(job.data.result))
     return (
@@ -145,11 +153,13 @@ export function PortfolioJob({ id, jobId }: { id: string; jobId: string }) {
 }
 function PortfolioLoading() {
   return (
-    <section className="route-state" role="status">
-      <p className="eyebrow">PORTFOLIO</p>
-      <h1>Loading portfolio risk…</h1>
-      <p>Reading the supplied forecast risk metrics.</p>
-    </section>
+    <RouteState kind="loading">
+      <PageHeader
+        eyebrow="Portfolio"
+        title={<>Loading portfolio risk…</>}
+        description={<>Reading the supplied forecast risk metrics.</>}
+      />
+    </RouteState>
   );
 }
 function PortfolioError({
@@ -160,17 +170,19 @@ function PortfolioError({
   retry: () => void;
 }) {
   return (
-    <section className="route-state" role="alert">
-      <p className="eyebrow">PORTFOLIO</p>
-      <h1>Portfolio unavailable</h1>
-      <p>{message}</p>
+    <RouteState kind="error">
+      <PageHeader
+        eyebrow="Portfolio"
+        title={<>Portfolio unavailable</>}
+        description={message}
+      />
       <div className="download-actions">
         <Button onClick={retry}>Retry portfolio</Button>
         <Button asChild variant="outline">
           <Link href="/portfolio">Choose another forecast</Link>
         </Button>
       </div>
-    </section>
+    </RouteState>
   );
 }
 
@@ -237,46 +249,43 @@ function PortfolioTable({
     v.toLocaleString(dataset.holiday_country === "IN" ? "en-IN" : undefined, {
       maximumFractionDigits: 1,
     });
-  const rows = useMemo(
-    () => {
-      const filtered = forecast.series.filter(
-        (s) =>
-          s.series_id
-            .toLocaleLowerCase()
-            .includes(deferredSearch.toLocaleLowerCase()) &&
-          (!groupBy ||
-            !groupValue ||
-            (attributes.get(s.series_id)?.[groupBy] || "Not supplied") ===
-              groupValue) &&
-          (direction === "all" || direction === s.risk.risk_direction) &&
-          (label === "all" ||
-            (label === "unreported"
-              ? s.risk.uncertainty_label === undefined
-              : label === s.risk.uncertainty_label)),
+  const rows = useMemo(() => {
+    const filtered = forecast.series.filter(
+      (s) =>
+        s.series_id
+          .toLocaleLowerCase()
+          .includes(deferredSearch.toLocaleLowerCase()) &&
+        (!groupBy ||
+          !groupValue ||
+          (attributes.get(s.series_id)?.[groupBy] || "Not supplied") ===
+            groupValue) &&
+        (direction === "all" || direction === s.risk.risk_direction) &&
+        (label === "all" ||
+          (label === "unreported"
+            ? s.risk.uncertainty_label === undefined
+            : label === s.risk.uncertainty_label)),
+    );
+    const ordered = sortRisk(filtered, sort, descending);
+    if (groupBy)
+      ordered.sort((a, b) =>
+        (
+          attributes.get(a.series_id)?.[groupBy] || "Not supplied"
+        ).localeCompare(
+          attributes.get(b.series_id)?.[groupBy] || "Not supplied",
+        ),
       );
-      const ordered = sortRisk(filtered, sort, descending);
-      if (groupBy)
-        ordered.sort((a, b) =>
-          (
-            attributes.get(a.series_id)?.[groupBy] || "Not supplied"
-          ).localeCompare(
-            attributes.get(b.series_id)?.[groupBy] || "Not supplied",
-          ),
-        );
-      return ordered;
-    },
-    [
-      forecast.series,
-      deferredSearch,
-      groupBy,
-      groupValue,
-      attributes,
-      direction,
-      label,
-      sort,
-      descending,
-    ],
-  );
+    return ordered;
+  }, [
+    forecast.series,
+    deferredSearch,
+    groupBy,
+    groupValue,
+    attributes,
+    direction,
+    label,
+    sort,
+    descending,
+  ]);
   const pageCount = Math.max(1, Math.ceil(rows.length / PORTFOLIO_PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
   const firstRow = currentPage * PORTFOLIO_PAGE_SIZE;
@@ -313,52 +322,60 @@ function PortfolioTable({
     <section className="health-page portfolio-page">
       <div className="health-heading">
         <div>
-          <p className="eyebrow">
-            PORTFOLIO ·{" "}
-            {source === "demo"
-              ? findDemo(id)?.synthetic
-                ? "SYNTHETIC DEMO"
-                : "PRECOMPUTED MODEL FORECAST"
-              : "COMPLETED FORECAST"}
-          </p>
-          <h1>Portfolio</h1>
-          <p>{dataset.name}</p>
+          <PageHeader
+            eyebrow={
+              <>
+                PORTFOLIO ·{" "}
+                {source === "demo"
+                  ? findDemo(id)?.synthetic
+                    ? "SYNTHETIC DEMO"
+                    : "PRECOMPUTED MODEL FORECAST"
+                  : "COMPLETED FORECAST"}
+              </>
+            }
+            title={<>Portfolio</>}
+            description={dataset.name}
+          />
         </div>
         <Button variant="outline" onClick={download} disabled={!rows.length}>
           Export visible rows
         </Button>
       </div>
 
-      <div className="health-stats">
-        <article>
-          <span>Items in forecast</span>
-          <strong>{number(forecast.series.length)}</strong>
-          <small>{number(dataset.series_count)} items in dataset</small>
-        </article>
-        <article>
-          <span>
-            High variability{" "}
-            <InfoTip label="Forecast variability definition">
-              Width of the forecast range relative to the base case. Higher
-              means less predictable. The percentage is the full range width,
-              not a plus/minus value.
-            </InfoTip>
-          </span>
-          <strong>
-            {number(
-              forecast.series.filter(
-                (s) => s.risk.uncertainty_label === "volatile",
-              ).length,
-            )}
-          </strong>
-          <small>Classification supplied by the source</small>
-        </article>
-        <article>
-          <span>Forecast frequency</span>
-          <strong className="capitalize">{dataset.frequency}</strong>
-          <small>Reliable horizon uses this cadence</small>
-        </article>
-      </div>
+      <StatGrid>
+        <StatCard
+          label="Items in forecast"
+          value={<>{number(forecast.series.length)}</>}
+          hint={<>{number(dataset.series_count)} items in dataset</>}
+        />
+        <StatCard
+          label={
+            <>
+              High variability{" "}
+              <InfoTip label="Forecast variability definition">
+                Width of the forecast range relative to the base case. Higher
+                means less predictable. The percentage is the full range width,
+                not a plus/minus value.
+              </InfoTip>
+            </>
+          }
+          value={
+            <>
+              {number(
+                forecast.series.filter(
+                  (s) => s.risk.uncertainty_label === "volatile",
+                ).length,
+              )}
+            </>
+          }
+          hint={<>Classification supplied by the source</>}
+        />
+        <StatCard
+          label="Forecast frequency"
+          value={<span className="capitalize">{dataset.frequency}</span>}
+          hint={<>Reliable horizon uses this cadence</>}
+        />
+      </StatGrid>
       <div className="health-filters portfolio-filters">
         {!!dataset.hierarchy?.length && (
           <>
@@ -444,9 +461,9 @@ function PortfolioTable({
           Clear filters
         </Button>
       </div>
-      <p className="health-note" role="status">
+      <Hint role="status">
         {number(rows.length)} of {number(forecast.series.length)} items shown.
-      </p>
+      </Hint>
       <PortfolioBubbles
         rows={rows}
         additive={dataset.additive}
@@ -475,34 +492,29 @@ function PortfolioTable({
                   ["trust", "Reliable horizon"],
                 ] as const
               ).map(([key, title]) => (
-                <th
+                <SortHeader
                   key={key}
-                  aria-sort={
-                    sort === key
-                      ? descending
-                        ? "descending"
-                        : "ascending"
-                      : "none"
+                  label={title}
+                  active={sort === key}
+                  descending={descending}
+                  onSort={() => {
+                    changeSort(key);
+                    setPage(0);
+                  }}
+                  info={
+                    <>
+                      <InfoTip label={`${title} definition`}>
+                        {key === "series_id"
+                          ? "The product, SKU, store × product, or plant being forecast."
+                          : key === "uncertainty"
+                            ? "Full forecast range width relative to the base case. Higher means less predictable; this is not a plus/minus percentage."
+                            : key === "direction"
+                              ? "Whether demand exceptions are more likely to be spikes (upside) or drops (downside), based on the supplied distribution."
+                              : "How far ahead the forecast stays reasonably tight, under the model’s threshold."}
+                      </InfoTip>
+                    </>
                   }
-                >
-                  <button
-                    onClick={() => {
-                      changeSort(key);
-                      setPage(0);
-                    }}
-                  >
-                    {title} {sort === key ? (descending ? "↓" : "↑") : "↕"}
-                  </button>
-                  <InfoTip label={`${title} definition`}>
-                    {key === "series_id"
-                      ? "The product, SKU, store × product, or plant being forecast."
-                      : key === "uncertainty"
-                        ? "Full forecast range width relative to the base case. Higher means less predictable; this is not a plus/minus percentage."
-                        : key === "direction"
-                          ? "Whether demand exceptions are more likely to be spikes (upside) or drops (downside), based on the supplied distribution."
-                          : "How far ahead the forecast stays reasonably tight, under the model’s threshold."}
-                  </InfoTip>
-                </th>
+                />
               ))}
               <th>
                 {dataset.additive ? "Base case total" : "Base case average"}
@@ -615,7 +627,7 @@ function PortfolioTable({
         </nav>
       )}
       {!rows.length && (
-        <div className="health-table-empty">
+        <Callout tone="neutral">
           <h2>
             {forecast.series.length
               ? "No item match these filters."
@@ -626,10 +638,9 @@ function PortfolioTable({
               ? "Clear the filters to see every forecast item."
               : "Choose a forecast with item results to review portfolio risk."}
           </p>
-        </div>
+        </Callout>
       )}
-      <details className="provenance">
-        <summary>Metric definitions</summary>
+      <Disclosure className="provenance" summary={<>Metric definitions</>}>
         <p>
           Uncertainty is the supplied sum of (P90 − P10) divided by the sum of
           |P50| over forecast periods, shown as a percentage. It is the full
@@ -655,7 +666,7 @@ function PortfolioTable({
           uncertainty_label, risk_direction, and trust_horizon. No portfolio
           aggregate distribution is computed.
         </p>
-      </details>
+      </Disclosure>
     </section>
   );
 }

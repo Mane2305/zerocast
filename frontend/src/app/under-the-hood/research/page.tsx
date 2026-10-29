@@ -1,3 +1,5 @@
+import { Hint } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/layout";
 import Link from "next/link";
 export const metadata = { title: "Covariate research · ZeroCast" };
 export default function Research() {
@@ -6,8 +8,10 @@ export default function Research() {
       <Link className="text-link" href="/under-the-hood">
         ← Model & method
       </Link>
-      <p className="eyebrow">PROJECT RESEARCH · HISTORICAL EXPERIMENT</p>
-      <h1 className="forecast-title">Why sales-only comes first.</h1>
+      <PageHeader
+        eyebrow="Project Research · Historical Experiment"
+        title={<>Why sales-only comes first.</>}
+      />
       <p className="lede">
         A summary of the project’s recorded covariate experiments, not a live
         deployment benchmark.
@@ -105,12 +109,12 @@ export default function Research() {
             Future promotion scenarios are not inferred from these experiments.
           </li>
         </ul>
-        <p className="health-note">
+        <Hint>
           Source: the repository’s docs/RESEARCH.md and docs/YUG_NOTES.md. This
           page summarises the recorded evidence; it does not rerun the
           experiments. Read the source discussion for context and subsequent
           updates.
-        </p>
+        </Hint>
         <a
           className="text-link"
           href="https://github.com/birla-ai-labs/yug/issues/15"
