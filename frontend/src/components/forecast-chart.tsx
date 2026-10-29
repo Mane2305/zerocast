@@ -185,7 +185,7 @@ export default function ForecastChart({
         right: 10,
         itemWidth: 14,
         itemHeight: 8,
-        itemGap: 8,
+        itemGap: 20,
         textStyle: { color: muted, fontSize: 11 },
         data: [
           "Past demand",

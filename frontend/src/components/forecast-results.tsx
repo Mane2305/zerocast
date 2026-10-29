@@ -1,4 +1,5 @@
 "use client";
+import { Download } from "lucide-react";
 import { RouteState } from "@/components/ui/route-state";
 import { Disclosure } from "@/components/ui/controls";
 import { Hint } from "@/components/ui/feedback";
@@ -327,8 +328,14 @@ export function ForecastResults({
             : ""}
           Device: {device || "not reported"}.
         </InfoTip>
-        <Button onClick={download} variant="outline">
-          Export forecast CSV
+        <Button
+          onClick={download}
+          variant="outline"
+          size="sm"
+          aria-label="Export forecast CSV"
+        >
+          <Download size={14} />
+          Export CSV
         </Button>
       </div>
       {historyNote && <Hint role="status">{historyNote}</Hint>}
