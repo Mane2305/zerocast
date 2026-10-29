@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "./ui/select";
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -184,18 +185,12 @@ export function AccuracyResults({
         </div>
       </dl>
       <div className="accuracy-selection">
-        <label>
-          Chart item{" "}
-          <select
-            aria-label="Accuracy chart item"
-            value={item.series_id}
-            onChange={(event) => setSelected(event.target.value)}
-          >
-            {result.series.map((item) => (
-              <option key={item.series_id}>{item.series_id}</option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Chart item"
+          options={result.series.map((item) => ({ value: item.series_id }))}
+          value={item.series_id}
+          onChange={setSelected}
+        />
         <span>
           {item.backtest.dates.length
             ? `${formatPeriod(item.backtest.dates[0], frequency)} – ${formatPeriod(item.backtest.dates.at(-1), frequency)}`

@@ -10,6 +10,8 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { Select } from "@/components/ui/select";
 import {
   fileError,
   fileSize,
@@ -25,91 +27,32 @@ import { apiConfigured } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
 import { SheetsImport } from "./sheets-import";
 
-const MAX_VISIBLE_COLUMN_OPTIONS = 120;
-
 function ColumnOptionPicker({
   label,
   columns,
   selected,
   maxSelected,
   onChange,
+  placeholder,
 }: {
   label: string;
   columns: string[];
   selected: string[];
   maxSelected?: number;
   onChange: (next: string[]) => void;
+  placeholder?: string;
 }) {
-  const [query, setQuery] = useState("");
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const matching = normalizedQuery
-    ? columns.filter((column) =>
-        column.toLocaleLowerCase().includes(normalizedQuery),
-      )
-    : columns;
-  const visible = matching.slice(0, MAX_VISIBLE_COLUMN_OPTIONS);
-  const remaining = matching.length - visible.length;
-
   return (
-    <div className="upload-column-picker">
-      <label className="upload-column-search">
-        <span className="sr-only">Search {label}</span>
-        <input
-          type="search"
-          aria-label={`Search ${label}`}
-          placeholder={`Search ${label.toLocaleLowerCase()}…`}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
-      <p className="upload-column-count" aria-live="polite">
-        {selected.length} selected · {columns.length} available
-        {normalizedQuery &&
-          ` · ${matching.length} match${matching.length === 1 ? "" : "es"}`}
-      </p>
-      <div
-        className="upload-v2-columns"
-        role="group"
-        aria-label={label}
-        tabIndex={0}
-      >
-        {visible.map((column) => {
-          const checked = selected.includes(column);
-          return (
-            <label key={column} title={column}>
-              <input
-                type="checkbox"
-                checked={checked}
-                disabled={
-                  !checked &&
-                  maxSelected !== undefined &&
-                  selected.length >= maxSelected
-                }
-                onChange={(event) =>
-                  onChange(
-                    event.target.checked
-                      ? [...selected, column]
-                      : selected.filter((name) => name !== column),
-                  )
-                }
-              />
-              <span>{column}</span>
-            </label>
-          );
-        })}
-        {!visible.length && (
-          <p className="upload-column-empty">
-            No columns match “{query.trim()}”. Try another search.
-          </p>
-        )}
-      </div>
-      {remaining > 0 && (
-        <p className="upload-column-count">
-          Showing the first {visible.length} matches. Search to find the other{" "}
-          {remaining.toLocaleString()}.
-        </p>
-      )}
-    </div>
+    <MultiSelect
+      label={label}
+      placeholder={placeholder ?? `Choose ${label.toLocaleLowerCase()}…`}
+      options={columns.map((column) => ({ value: column }))}
+      value={selected}
+      onChange={onChange}
+      max={maxSelected}
+      maxChips={6}
+      emptyText="No columns match. Try another search."
+    />
   );
 }
 
@@ -475,22 +418,16 @@ export function UploadFlow() {
           </div>
           {inspection.sheets.length > 0 && (
             <div className="sheet-choice">
-              <label>
-                Worksheet
-                <select
-                  value={sheet}
-                  aria-label="Worksheet"
-                  disabled={!!busy}
-                  onChange={(event) => {
-                    setSheet(event.target.value);
-                    setPrepared(undefined);
-                  }}
-                >
-                  {inspection.sheets.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </label>
+              <Select
+                label="Worksheet"
+                options={inspection.sheets.map((s) => ({ value: s }))}
+                value={sheet}
+                disabled={!!busy}
+                onChange={(value) => {
+                  setSheet(value);
+                  setPrepared(undefined);
+                }}
+              />
               <Button
                 variant="outline"
                 disabled={!!busy || sheet === inspection.sheet}
@@ -510,19 +447,32 @@ export function UploadFlow() {
           </p>
           <fieldset disabled={!!busy || sheet !== inspection.sheet}>
             <div className="upload-v2-fields">
-              <label>
-                Source layout
-                <select
+              <div className="zc-field">
+                <span className="zc-static-label">Source layout</span>
+                <div
+                  className="zc-segmented"
+                  role="radiogroup"
                   aria-label="Source layout"
-                  value={mapping.format || "long"}
-                  onChange={(e) =>
-                    updateMapping({ format: e.target.value as "long" | "wide" })
-                  }
                 >
-                  <option value="long">Long · one row per item and date</option>
-                  <option value="wide">Wide · one column per item</option>
-                </select>
-              </label>
+                  {(
+                    [
+                      ["long", "Long", "One row per item and date"],
+                      ["wide", "Wide", "One column per item"],
+                    ] as const
+                  ).map(([value, title, help]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={(mapping.format || "long") === value}
+                      onClick={() => updateMapping({ format: value })}
+                    >
+                      <strong>{title}</strong>
+                      <span>{help}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="mapping-grid">
               {(
@@ -534,37 +484,27 @@ export function UploadFlow() {
               ).map(
                 ([key, label]) =>
                   (mapping.format !== "wide" || key === "date") && (
-                    <label key={key}>
-                      {label}
-                      <select
-                        value={mapping[key]}
-                        aria-label={label}
-                        onChange={(event) =>
-                          updateMapping({
-                            [key]: event.target.value,
-                            ...(key === "series"
-                              ? { idColumns: undefined }
-                              : {}),
-                          })
-                        }
-                      >
-                        <option value="">Choose a column</option>
-                        {inspection.columns.map((c) => (
-                          <option key={c}>{c}</option>
-                        ))}
-                      </select>
-                    </label>
+                    <Select
+                      key={key}
+                      label={label}
+                      placeholder="Choose a column…"
+                      options={inspection.columns.map((c) => ({ value: c }))}
+                      value={mapping[key]}
+                      onChange={(value) =>
+                        updateMapping({
+                          [key]: value,
+                          ...(key === "series" ? { idColumns: undefined } : {}),
+                        })
+                      }
+                    />
                   ),
               )}
             </div>
             {mapping.format === "wide" ? (
-              <fieldset>
-                <legend>
-                  Item columns · {mapping.wideColumns?.length || 0} selected ·
-                  unselected columns are omitted
-                </legend>
+              <div className="zc-stack">
                 <ColumnOptionPicker
-                  label="item columns"
+                  label="Item columns"
+                  placeholder="Choose the columns that hold items…"
                   columns={inspection.columns.filter((c) => c !== mapping.date)}
                   selected={mapping.wideColumns || []}
                   onChange={(wideColumns) => updateMapping({ wideColumns })}
@@ -575,38 +515,30 @@ export function UploadFlow() {
                     more items in this dataset and choose a smaller run later.
                   </p>
                 )}
-              </fieldset>
+                <p className="field-help">Unselected columns are left out.</p>
+              </div>
             ) : (
-              <fieldset>
-                <legend>
-                  Hierarchy ID columns (optional; combined as store|product) ·{" "}
-                  {mapping.idColumns?.length || 0} selected
-                </legend>
+              <div className="zc-stack">
                 <ColumnOptionPicker
-                  label="hierarchy ID columns"
+                  label="Hierarchy ID columns (optional)"
+                  placeholder="e.g. store and product, combined as store|product"
                   columns={inspection.columns.filter(
                     (c) => ![mapping.date, mapping.target].includes(c),
                   )}
                   selected={mapping.idColumns || []}
                   onChange={(idColumns) => updateMapping({ idColumns })}
                 />
-              </fieldset>
+              </div>
             )}
             <p className="field-help">
               Use ISO dates (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS). Target and
               drivers must be plain finite numbers; leave unknown values blank.
             </p>
             {mapping.format !== "wide" && (
-              <fieldset className="factor-fields">
-                <legend>
-                  Optional drivers · {mapping.factors.length}/10 selected
-                </legend>
-                <p className="field-help">
-                  Choose up to 10 numeric drivers. Search by name to find a
-                  column in a wide file.
-                </p>
+              <div className="zc-stack factor-fields">
                 <ColumnOptionPicker
-                  label="driver columns"
+                  label="Drivers (optional)"
+                  placeholder="Up to 10 numeric columns, e.g. price, promo"
                   columns={inspection.columns.filter(
                     (c) =>
                       ![
@@ -620,40 +552,34 @@ export function UploadFlow() {
                   maxSelected={10}
                   onChange={(factors) => updateMapping({ factors })}
                 />
-              </fieldset>
+              </div>
             )}
             <div className="mapping-grid">
-              <label>
-                Time period
-                <select
-                  value={mapping.period}
-                  onChange={(event) =>
-                    updateMapping({
-                      period: event.target.value as Mapping["period"],
-                    })
-                  }
-                >
-                  <option value="original">Keep original dates</option>
-                  <option value="day">Daily</option>
-                  <option value="week">Weekly · Monday start</option>
-                  <option value="month">Monthly · first day</option>
-                </select>
-              </label>
-              <label>
-                Rows sharing a period and item
-                <select
-                  value={mapping.aggregation}
-                  onChange={(event) =>
-                    updateMapping({
-                      aggregation: event.target.value as Mapping["aggregation"],
-                    })
-                  }
-                >
-                  <option value="reject">Reject duplicates</option>
-                  <option value="sum">Sum target · average drivers</option>
-                  <option value="avg">Average target & drivers</option>
-                </select>
-              </label>
+              <Select
+                label="Time period"
+                options={[
+                  { value: "original", label: "Keep original dates" },
+                  { value: "day", label: "Daily" },
+                  { value: "week", label: "Weekly", hint: "Monday start" },
+                  { value: "month", label: "Monthly", hint: "first day" },
+                ]}
+                value={mapping.period}
+                onChange={(value) =>
+                  updateMapping({ period: value as Mapping["period"] })
+                }
+              />
+              <Select
+                label="Rows sharing a period and item"
+                options={[
+                  { value: "reject", label: "Reject duplicates" },
+                  { value: "sum", label: "Sum target · average drivers" },
+                  { value: "avg", label: "Average target & drivers" },
+                ]}
+                value={mapping.aggregation}
+                onChange={(value) =>
+                  updateMapping({ aggregation: value as Mapping["aggregation"] })
+                }
+              />
             </div>
             <p className="field-help">
               Roll-ups change the meaning of your data. A group with any unknown
@@ -685,7 +611,7 @@ export function UploadFlow() {
               </small>
             </article>
             <article>
-              <span>item</span>
+              <span>Items</span>
               <strong>{prepared.series.toLocaleString()}</strong>
               <small>
                 {prepared.shortSeries} with fewer than 30 known points
@@ -715,18 +641,16 @@ export function UploadFlow() {
                 placeholder="units, tonnes, index points, INR"
               />
             </label>
-            <label>
-              <span>Do values add over time?</span>
-              <select
-                aria-label="Values add over time"
-                value={additive ? "yes" : "no"}
-                disabled={!!busy || !!dataset}
-                onChange={(e) => setAdditive(e.target.value === "yes")}
-              >
-                <option value="yes">Yes · units, revenue, tonnes</option>
-                <option value="no">No · index, price, rate (averages)</option>
-              </select>
-            </label>
+            <Select
+              label="Do values add over time?"
+              options={[
+                { value: "yes", label: "Yes", hint: "units, revenue, tonnes" },
+                { value: "no", label: "No", hint: "index, price, rate" },
+              ]}
+              value={additive ? "yes" : "no"}
+              disabled={!!busy || !!dataset}
+              onChange={(value) => setAdditive(value === "yes")}
+            />
             <label>
               Dataset name
               <input
@@ -736,20 +660,19 @@ export function UploadFlow() {
                 maxLength={200}
               />
             </label>
-            <label>
-              Holiday calendar country (optional)
-              <select
-                value={country}
-                disabled={!!busy || !!dataset}
-                onChange={(event) => setCountry(event.target.value)}
-              >
-                <option value="">Not selected</option>
-                <option value="IN">India</option>
-                <option value="EC">Ecuador</option>
-                <option value="US">United States</option>
-                <option value="GB">United Kingdom</option>
-              </select>
-            </label>
+            <Select
+              label="Holiday calendar (optional)"
+              options={[
+                { value: "", label: "Not selected" },
+                { value: "IN", label: "India" },
+                { value: "EC", label: "Ecuador" },
+                { value: "US", label: "United States" },
+                { value: "GB", label: "United Kingdom" },
+              ]}
+              value={country}
+              disabled={!!busy || !!dataset}
+              onChange={setCountry}
+            />
           </div>
           <div className="download-actions">
             <Button

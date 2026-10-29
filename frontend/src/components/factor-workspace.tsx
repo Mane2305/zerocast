@@ -3,6 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { NumberField } from "@/components/ui/number-field";
+import { Select } from "@/components/ui/select";
+import { horizonPresets, horizonUnit, seriesOptions } from "@/lib/pickers";
 import { isDataset, loadHealth, type Dataset } from "@/lib/data-health";
 import { getFactorJob, submitFactors } from "@/lib/api/factors";
 import { validFactors } from "@/lib/factors";
@@ -223,70 +227,45 @@ function FactorRunner({
       </Link>
       <section className="forecast-parameters" aria-label="Drivers parameters">
         <fieldset disabled={active}>
-          <legend>Choose one item and up to ten drivers</legend>
-          <div className="forecast-controls">
-            <label>
-              item
-              <select
-                aria-label="Series"
-                value={series}
-                onChange={(e) => setSeries(e.target.value)}
-              >
-                <option value="">Choose a item</option>
-                {dataset.series?.map((s) => (
-                  <option
-                    key={s.series_id}
-                    disabled={s.status === "excluded"}
-                    value={s.series_id}
-                  >
-                    {s.series_id} · {s.status}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Backtest horizon (1–64 periods)
-              <input
-                aria-label="Backtest horizon"
-                type="number"
-                min="1"
-                max="64"
-                step="1"
-                value={horizon}
-                onChange={(e) => setHorizon(e.target.value)}
-              />
-            </label>
-            <label>
-              Maximum lag (periods)
-              <input
-                aria-label="Maximum lag"
-                type="number"
-                min="0"
-                step="1"
-                value={lag}
-                onChange={(e) => setLag(e.target.value)}
-              />
-            </label>
-          </div>
-          <p>{factors.length}/10 drivers selected</p>
-          <div className="forecast-series-picker">
-            {available.map((f) => (
-              <label key={f}>
-                <input
-                  type="checkbox"
-                  checked={factors.includes(f)}
-                  disabled={!factors.includes(f) && factors.length >= 10}
-                  onChange={(e) =>
-                    setFactors(
-                      e.target.checked
-                        ? [...factors, f]
-                        : factors.filter((x) => x !== f),
-                    )
-                  }
-                />
-                {f}
-              </label>
-            ))}
+          <legend className="sr-only">Choose one item and up to ten drivers</legend>
+          <div className="zc-form-grid">
+            <Select
+              label="Item"
+              placeholder="Choose an item…"
+              options={seriesOptions(dataset.series)}
+              value={series}
+              onChange={setSeries}
+              disabled={active}
+            />
+            <MultiSelect
+              label="Drivers"
+              placeholder="Choose drivers…"
+              options={available.map((f) => ({ value: f }))}
+              value={factors}
+              onChange={setFactors}
+              max={10}
+              disabled={active}
+              emptyText="No driver columns in this dataset"
+            />
+            <NumberField
+              label="Backtest horizon"
+              value={horizon}
+              onChange={setHorizon}
+              min={1}
+              max={64}
+              unit={horizonUnit(dataset.frequency)}
+              presets={horizonPresets(dataset.frequency, 64)}
+              disabled={active}
+            />
+            <NumberField
+              label="Maximum lag"
+              value={lag}
+              onChange={setLag}
+              min={0}
+              max={52}
+              unit={horizonUnit(dataset.frequency)}
+              disabled={active}
+            />
           </div>
           <Button onClick={run} disabled={!!invalid || active}>
             {submitting ? "Submitting…" : "Run driver check"}

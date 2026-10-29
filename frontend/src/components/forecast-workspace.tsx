@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { NumberField } from "@/components/ui/number-field";
+import { horizonPresets, horizonUnit, seriesOptions } from "@/lib/pickers";
 import { loadHealth, type Dataset } from "@/lib/data-health";
 import { api } from "@/lib/api/client";
 import { submitForecast, getForecastJob, getHistory } from "@/lib/api/forecast";
@@ -249,30 +252,16 @@ function ForecastRunner({
           aria-label="Forecast parameters"
         >
           <fieldset disabled={active}>
-            <legend>item · {picked.length}/100 selected</legend>
-            <div className="forecast-series-picker">
-              {dataset.series?.map((s) => (
-                <label key={s.series_id}>
-                  <input
-                    type="checkbox"
-                    checked={picked.includes(s.series_id)}
-                    disabled={
-                      s.status === "excluded" ||
-                      (!picked.includes(s.series_id) && picked.length >= 100)
-                    }
-                    onChange={(e) =>
-                      setPicked(
-                        e.target.checked
-                          ? [...picked, s.series_id]
-                          : picked.filter((v) => v !== s.series_id),
-                      )
-                    }
-                  />
-                  {s.series_id}
-                  <small>{s.status}</small>
-                </label>
-              ))}
-            </div>
+            <legend className="sr-only">Items to forecast</legend>
+            <MultiSelect
+              label="Items to forecast"
+              placeholder="Choose items…"
+              options={seriesOptions(dataset.series)}
+              value={picked}
+              onChange={setPicked}
+              max={100}
+              disabled={active}
+            />
             {!dataset.series?.length && (
               <p>
                 No item summaries are available. Selection requires the API’s
@@ -281,19 +270,16 @@ function ForecastRunner({
             )}
           </fieldset>
           <div className="forecast-controls">
-            <label>
-              Forecast horizon (periods)
-              <input
-                aria-label="Forecast horizon (periods)"
-                type="number"
-                min="1"
-                max="256"
-                step="1"
-                value={horizon}
-                disabled={active}
-                onChange={(e) => setHorizon(e.target.value)}
-              />
-            </label>
+            <NumberField
+              label="Forecast horizon"
+              value={horizon}
+              onChange={setHorizon}
+              min={1}
+              max={256}
+              unit={horizonUnit(dataset.frequency)}
+              presets={horizonPresets(dataset.frequency)}
+              disabled={active}
+            />
             <label>
               Service level: {level}%
               <input
@@ -311,7 +297,7 @@ function ForecastRunner({
           </div>
           <p className="health-note">
             {invalid ||
-              "Ready to run. Maximum 256 periods and 100 item. drivers are not used."}
+              "Ready to run. Up to 100 items and 256 periods; drivers are not used."}
           </p>
         </section>
         {submitError && (

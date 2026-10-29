@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "./ui/select";
 import { useEffect, useRef, useState } from "react";
 import { formatPeriod, type Frequency } from "@/lib/dates";
 import { valueFormatter } from "@/lib/numbers";
@@ -176,18 +177,12 @@ export function ReviewResults({
         </Button>
       </div>
       <div className="forecast-controls">
-        <label>
-          Item
-          <select
-            aria-label="Item"
-            value={series.series_id}
-            onChange={(e) => setSelected(e.target.value)}
-          >
-            {review.series.map((s) => (
-              <option key={s.series_id}>{s.series_id}</option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Item"
+          options={review.series.map((s) => ({ value: s.series_id }))}
+          value={series.series_id}
+          onChange={setSelected}
+        />
       </div>
 
       <div className="health-stats">

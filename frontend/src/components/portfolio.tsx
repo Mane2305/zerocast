@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "./ui/select";
 import { InfoTip } from "./info-tip";
 import { formatPeriod } from "@/lib/dates";
 import { findDemo } from "@/lib/demos";
@@ -361,40 +362,32 @@ function PortfolioTable({
       <div className="health-filters portfolio-filters">
         {!!dataset.hierarchy?.length && (
           <>
-            <label>
-              Group by
-              <select
-                aria-label="Group portfolio by"
-                value={groupBy}
-                onChange={(e) => {
-                  setGroupBy(e.target.value);
-                  setGroupValue("");
+            <Select
+              label="Group by"
+              options={[
+                { value: "", label: "No grouping" },
+                ...dataset.hierarchy.map((column) => ({ value: column })),
+              ]}
+              value={groupBy}
+              onChange={(value) => {
+                setGroupBy(value);
+                setGroupValue("");
+                setPage(0);
+              }}
+            />
+            {groupBy && (
+              <Select
+                label="Group"
+                options={[
+                  { value: "", label: "All groups" },
+                  ...groups.map((name) => ({ value: name })),
+                ]}
+                value={groupValue}
+                onChange={(value) => {
+                  setGroupValue(value);
                   setPage(0);
                 }}
-              >
-                <option value="">No grouping</option>
-                {dataset.hierarchy.map((column) => (
-                  <option key={column}>{column}</option>
-                ))}
-              </select>
-            </label>
-            {groupBy && (
-              <label>
-                Group
-                <select
-                  aria-label="Portfolio group"
-                  value={groupValue}
-                  onChange={(e) => {
-                    setGroupValue(e.target.value);
-                    setPage(0);
-                  }}
-                >
-                  <option value="">All groups</option>
-                  {groups.map((name) => (
-                    <option key={name}>{name}</option>
-                  ))}
-                </select>
-              </label>
+              />
             )}
           </>
         )}
@@ -410,39 +403,35 @@ function PortfolioTable({
             placeholder="Item ID"
           />
         </label>
-        <label>
-          Variability label
-          <select
-            aria-label="Variability label"
-            value={label}
-            onChange={(e) => {
-              setLabel(e.target.value);
-              setPage(0);
-            }}
-          >
-            <option value="all">All labels</option>
-            <option value="predictable">Predictable</option>
-            <option value="moderate">Moderate</option>
-            <option value="volatile">Volatile</option>
-            <option value="unreported">Not reported</option>
-          </select>
-        </label>
-        <label>
-          Demand risk
-          <select
-            aria-label="Demand risk"
-            value={direction}
-            onChange={(e) => {
-              setDirection(e.target.value);
-              setPage(0);
-            }}
-          >
-            <option value="all">All directions</option>
-            <option value="upside">Upside</option>
-            <option value="downside">Downside</option>
-            <option value="balanced">Balanced</option>
-          </select>
-        </label>
+        <Select
+          label="Variability"
+          options={[
+            { value: "all", label: "All labels" },
+            { value: "predictable", label: "Predictable" },
+            { value: "moderate", label: "Moderate" },
+            { value: "volatile", label: "Volatile" },
+            { value: "unreported", label: "Not reported" },
+          ]}
+          value={label}
+          onChange={(value) => {
+            setLabel(value);
+            setPage(0);
+          }}
+        />
+        <Select
+          label="Demand risk"
+          options={[
+            { value: "all", label: "All directions" },
+            { value: "upside", label: "Upside" },
+            { value: "downside", label: "Downside" },
+            { value: "balanced", label: "Balanced" },
+          ]}
+          value={direction}
+          onChange={(value) => {
+            setDirection(value);
+            setPage(0);
+          }}
+        />
         <Button
           variant="ghost"
           onClick={() => {

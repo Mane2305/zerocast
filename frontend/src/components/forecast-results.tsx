@@ -7,6 +7,8 @@ import { InfoTip } from "./info-tip";
 import { suppliedPaths, type ReviewSeries } from "@/lib/forecast-story";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { horizonUnit } from "@/lib/pickers";
 import { lastBacktest, type Accuracy } from "@/lib/accuracy";
 import {
   forecastCsv,
@@ -148,33 +150,25 @@ export function ForecastResults({
           </button>
           <div className="planning-fields">
             <h2>Planning controls</h2>
-            <label>
-              Item{" "}
-              <InfoTip label="Item definition">
-                The product, SKU, store × product, or plant being forecast.
-              </InfoTip>
-              <select
-                aria-label="Item"
-                value={series.series_id}
-                onChange={(e) => setSelected(e.target.value)}
-              >
-                {forecast.series.map((s) => (
-                  <option key={s.series_id}>{s.series_id}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Forecast horizon{" "}
-              <InfoTip label="Forecast horizon definition">
-                How many periods ahead the supplied forecast covers. Saved
-                forecasts have a fixed horizon.
-              </InfoTip>
-              <input
-                aria-label="Saved forecast horizon"
-                value={`${series.dates.length} periods`}
-                readOnly
-              />
-            </label>
+            <Select
+              label="Item"
+              options={forecast.series.map((s) => ({ value: s.series_id }))}
+              value={series.series_id}
+              onChange={setSelected}
+            />
+            <div className="zc-field">
+              <span className="zc-static-label">
+                Forecast horizon{" "}
+                <InfoTip label="Forecast horizon definition">
+                  How many periods ahead the forecast covers. Saved forecasts
+                  have a fixed horizon.
+                </InfoTip>
+              </span>
+              <span className="zc-static-value" aria-label="Saved forecast horizon">
+                {series.dates.length} {horizonUnit(frequency)}
+                {saved && <span className="zc-badge">Saved · fixed</span>}
+              </span>
+            </div>
             <label htmlFor="service-level">
               Service level <strong>{level}%</strong>{" "}
               <InfoTip label="Service level definition">
@@ -190,12 +184,6 @@ export function ForecastResults({
               value={level}
               onChange={(event) => setLevel(Number(event.target.value))}
             />
-            {saved && (
-              <>
-                <Button disabled>Precomputed forecast</Button>
-                <small>Fixed horizon · no new model run</small>
-              </>
-            )}
             <dl className="planning-buffer">
               <dt>
                 Safety buffer{" "}
@@ -215,18 +203,13 @@ export function ForecastResults({
         </aside>
       )}
       {parameters && (
-        <label className="result-item">
-          Item{" "}
-          <select
-            aria-label="Item"
-            value={series.series_id}
-            onChange={(event) => setSelected(event.target.value)}
-          >
-            {forecast.series.map((item) => (
-              <option key={item.series_id}>{item.series_id}</option>
-            ))}
-          </select>
-        </label>
+        <Select
+          className="result-item"
+          label="Item"
+          options={forecast.series.map((item) => ({ value: item.series_id }))}
+          value={series.series_id}
+          onChange={setSelected}
+        />
       )}
       <div className="chart-heading">
         <div>

@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "./ui/select";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DriverCharts } from "./driver-charts";
@@ -151,21 +152,18 @@ export function FactorResults({
             placeholder="Driver name"
           />
         </label>
-        <label>
-          Verdict
-          <select
-            aria-label="Verdict"
-            value={verdict}
-            onChange={(e) => setVerdict(e.target.value)}
-          >
-            <option value="all">All verdicts</option>
-            {Object.entries(verdicts).map(([key, value]) => (
-              <option key={key} value={key}>
-                {value.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Verdict"
+          options={[
+            { value: "all", label: "All verdicts" },
+            ...Object.entries(verdicts).map(([key, value]) => ({
+              value: key,
+              label: value.label,
+            })),
+          ]}
+          value={verdict}
+          onChange={setVerdict}
+        />
       </div>
       <p className="health-note" role="status">
         {rows.length} of {result.factors.length} drivers shown.

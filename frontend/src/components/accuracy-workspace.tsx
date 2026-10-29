@@ -9,7 +9,9 @@ import { getAccuracyJob, submitAccuracy } from "@/lib/api/accuracy";
 import { useDatasetPreferences } from "@/lib/preferences";
 import { AccuracyResults } from "./accuracy-results";
 import { Button } from "./ui/button";
-import { InfoTip } from "./info-tip";
+import { MultiSelect } from "./ui/multi-select";
+import { NumberField } from "./ui/number-field";
+import { horizonPresets, horizonUnit, seriesOptions } from "@/lib/pickers";
 
 export function AccuracyDemo({ id }: { id: string }) {
   const preferences = useDatasetPreferences(id);
@@ -245,65 +247,47 @@ function AccuracyRunner({
         <summary>Backtest settings</summary>
         <div className="accuracy-run-grid">
           <fieldset disabled={active}>
-            <legend>
-              Items · {picked.length}/20{" "}
-              <InfoTip label="Accuracy item selection">
-                Choose the items to score. Excluded items cannot be submitted.
-              </InfoTip>
-            </legend>
-            <div className="accuracy-item-picker">
-              {dataset.series?.map((s) => (
-                <label key={s.series_id}>
-                  <input
-                    type="checkbox"
-                    checked={picked.includes(s.series_id)}
-                    disabled={
-                      s.status === "excluded" ||
-                      (!picked.includes(s.series_id) && picked.length >= 20)
-                    }
-                    onChange={(event) =>
-                      setPicked(
-                        event.target.checked
-                          ? [...picked, s.series_id]
-                          : picked.filter((item) => item !== s.series_id),
-                      )
-                    }
-                  />
-                  {s.series_id}
-                  <small>{s.status}</small>
-                </label>
-              ))}
-            </div>
+            <legend className="sr-only">Items to score</legend>
+            <MultiSelect
+              label="Items to score"
+              placeholder="Choose items…"
+              options={seriesOptions(dataset.series)}
+              value={picked}
+              onChange={setPicked}
+              max={20}
+              disabled={active}
+            />
           </fieldset>
           <div className="accuracy-run-fields">
-            <label>
-              Forecast horizon{" "}
-              <input
-                aria-label="Accuracy forecast horizon"
-                type="number"
-                min="1"
-                max="256"
-                value={horizon}
-                disabled={active}
-                onChange={(event) => setHorizon(event.target.value)}
-              />
-            </label>
-            <label>
-              Backtest origins{" "}
-              <InfoTip label="Backtest origins definition">
-                How many past forecast windows to test, spaced one horizon
-                apart. The API may use fewer if history is short.
-              </InfoTip>
-              <input
-                aria-label="Backtest origins"
-                type="number"
-                min="1"
-                max="52"
+            <NumberField
+              label="Forecast horizon"
+              value={horizon}
+              onChange={setHorizon}
+              min={1}
+              max={256}
+              unit={horizonUnit(dataset.frequency)}
+              presets={horizonPresets(dataset.frequency)}
+              disabled={active}
+            />
+            <div className="zc-field">
+              <NumberField
+                label="Backtest windows"
                 value={origins}
+                onChange={setOrigins}
+                min={1}
+                max={52}
+                presets={[
+                  { value: 4, label: "4" },
+                  { value: 8, label: "8" },
+                  { value: 12, label: "12" },
+                ]}
                 disabled={active}
-                onChange={(event) => setOrigins(event.target.value)}
               />
-            </label>
+              <small className="muted">
+                Past forecast windows to test, one horizon apart. Fewer are used
+                if history is short.
+              </small>
+            </div>
             <Button onClick={run} disabled={!!issue || active}>
               {submitting ? "Submitting…" : "Run accuracy"}
             </Button>

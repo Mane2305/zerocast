@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "./ui/select";
 import { InfoTip } from "./info-tip";
 import { useDeferredValue, useMemo, useState } from "react";
 import { formatPeriod } from "@/lib/dates";
@@ -446,22 +447,20 @@ function HealthReport({
                 placeholder="Item ID"
               />
             </label>
-            <label>
-              Status
-              <select
-                aria-label="Status"
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value);
-                  setPage(0);
-                }}
-              >
-                <option value="all">All statuses</option>
-                <option value="ready">Ready</option>
-                <option value="warning">Warning</option>
-                <option value="excluded">Excluded</option>
-              </select>
-            </label>
+            <Select
+              label="Status"
+              options={[
+                { value: "all", label: "All statuses" },
+                { value: "ready", label: "Ready" },
+                { value: "warning", label: "Warning" },
+                { value: "excluded", label: "Excluded" },
+              ]}
+              value={status}
+              onChange={(value) => {
+                setStatus(value);
+                setPage(0);
+              }}
+            />
           </div>
           {linkageMissing ? (
             <p className="health-table-empty">

@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "./ui/select";
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -141,15 +142,13 @@ export function ExceptionCalendar({
           </InfoTip>
         </h2>
         {years.length > 1 && (
-          <select
-            aria-label="Calendar year"
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-          >
-            {years.map((year) => (
-              <option key={year}>{year}</option>
-            ))}
-          </select>
+          <Select
+            label="Calendar year"
+            hideLabel
+            options={years.map((year) => ({ value: String(year) }))}
+            value={String(year)}
+            onChange={setYear}
+          />
         )}
       </div>
       {item && points.length ? (

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   Activity,
@@ -23,6 +23,7 @@ import { demos, findDemo } from "@/lib/demos";
 import { loadDemo } from "@/lib/load-demo";
 import { apiConfigured, getHealth, ApiStartingError } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { loadHealth } from "@/lib/data-health";
 import { useDatasetPreferences } from "@/lib/preferences";
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -32,14 +33,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const searchRef = useRef<HTMLInputElement>(null);
   const segments = pathname.split("/").filter(Boolean);
+  // The saved driver demo (/factors/demo) is the cement dataset; say so in the
+  // switcher instead of falling back to Retail.
   const id =
-    segments.includes("demo") || segments.includes("dataset")
-      ? segments[2]
-      : segments[0] === "forecast" || segments[0] === "data-health"
-        ? segments[1]
-        : undefined;
+    pathname === "/factors/demo"
+      ? "manufacturing"
+      : segments.includes("demo") || segments.includes("dataset")
+        ? segments[2]
+        : segments[0] === "forecast" || segments[0] === "data-health"
+          ? segments[1]
+          : undefined;
   const demo = findDemo(id || "");
   const datasetId = id || "retail";
   const uploaded =
@@ -92,7 +96,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         )
       ) {
         event.preventDefault();
-        searchRef.current?.focus();
+        document.getElementById("item-search")?.click();
       }
       if (event.key === "Escape") setMobileOpen(false);
     };
@@ -136,6 +140,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const current =
     links.find((entry) => pathname.startsWith("/" + entry[3]))?.[0] ||
     (pathname === "/upload" ? "Data" : "Forecast");
+  // Only these pages show one item at a time; elsewhere the item is noise.
+  const itemScoped = current === "Forecast" || current === "Accuracy";
+  function goToItem(seriesId: string) {
+    preferences.update({ selected: seriesId });
+    if (current === "Accuracy") return;
+    if (uploaded) {
+      const query = new URLSearchParams();
+      const job = new URL(window.location.href).searchParams.get("job");
+      if (pathname.startsWith("/forecast/") && job) query.set("job", job);
+      query.set("series", seriesId);
+      router.push(`/forecast/dataset/${datasetId}?${query}`);
+      return;
+    }
+    router.push(
+      "/forecast/" + datasetId + "?" + new URLSearchParams({ series: seriesId }),
+    );
+  }
   const status = !apiConfigured
     ? "Demo mode · upload needs the backend"
     : health.isPending
@@ -167,30 +188,31 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </span>
           <span className="sidebar-label">ZeroCast</span>
         </Link>
-        <label className="dataset-switcher">
-          <span className="sidebar-label">Dataset</span>
-          <select
-            aria-label="Switch dataset"
-            value={uploaded ? "uploaded" : demo?.id || "retail"}
-            onChange={(event) =>
-              router.push(
-                event.target.value === "data"
-                  ? "/data"
-                  : current === "Accuracy"
-                    ? "/accuracy/demo/" + event.target.value
-                    : "/forecast/" + event.target.value,
-              )
-            }
-          >
-            {uploaded && <option value="uploaded">Uploaded dataset</option>}
-            {demos.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.title}
-              </option>
-            ))}
-            <option value="data">Add dataset…</option>
-          </select>
-        </label>
+        <Select
+          className="dataset-switcher sidebar-label"
+          label="Dataset"
+          options={[
+            ...(uploaded
+              ? [{ value: "uploaded", label: "Uploaded dataset" }]
+              : []),
+            ...demos.map((item) => ({
+              value: item.id,
+              label: item.title,
+            })),
+            { value: "data", label: "＋ Add dataset…" },
+          ]}
+          value={uploaded ? "uploaded" : demo?.id || "retail"}
+          onChange={(value) => {
+            if (value === "uploaded") return;
+            router.push(
+              value === "data"
+                ? "/data"
+                : current === "Accuracy"
+                  ? "/accuracy/demo/" + value
+                  : "/forecast/" + value,
+            );
+          }}
+        />
         <nav aria-label="Main navigation">
           {links.map(([label, href, Icon, key]) => (
             <Link
@@ -233,60 +255,26 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <span>
               {" "}
               / {demo?.title || (uploaded ? "Uploaded data" : "Workspace")}
-              {activeItem && ` · ${activeItem}`}
+              {activeItem && itemScoped && ` · ${activeItem}`}
             </span>
           </span>
-          <form
-            className="item-search"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const value = searchRef.current?.value.trim();
-              const found = items?.find(
-                (item) => item.series_id.toLowerCase() === value?.toLowerCase(),
-              );
-              if (found) {
-                preferences.update({ selected: found.series_id });
-                if (current === "Accuracy") {
-                  if (searchRef.current) searchRef.current.value = "";
-                  return;
-                }
-                if (uploaded) {
-                  const url = new URL(window.location.href);
-                  const query = new URLSearchParams();
-                  const job = url.searchParams.get("job");
-                  if (pathname.startsWith("/forecast/") && job)
-                    query.set("job", job);
-                  query.set("series", found.series_id);
-                  router.push(`/forecast/dataset/${datasetId}?${query}`);
-                  if (searchRef.current) searchRef.current.value = "";
-                  return;
-                }
-                router.push(
-                  "/forecast/" +
-                    datasetId +
-                    "?" +
-                    new URLSearchParams({ series: found.series_id }),
-                );
-                if (searchRef.current) searchRef.current.value = "";
-              }
-            }}
-          >
-            <Search size={15} />
-            <input
-              ref={searchRef}
-              aria-label="Search items"
+          <div className="item-search">
+            <Search size={15} aria-hidden />
+            <Select
+              id="item-search"
+              label="Find item"
+              hideLabel
               placeholder="Find item…"
-              list="workspace-items"
+              searchAbove={0}
+              options={(items ?? []).map((item) => ({
+                value: item.series_id,
+              }))}
+              value=""
               disabled={!items?.length}
-              autoComplete="off"
+              onChange={goToItem}
             />
             <kbd>/</kbd>
-            <datalist id="workspace-items">
-              {items?.map((item) => (
-                <option key={item.series_id} value={item.series_id} />
-              ))}
-            </datalist>
-          </form>
+          </div>
           <span
             className={"api-status " + (health.isError ? "offline" : "")}
             title={status}

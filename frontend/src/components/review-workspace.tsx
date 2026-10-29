@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { seriesOptions } from "@/lib/pickers";
 import { isDataset, loadHealth, type Dataset } from "@/lib/data-health";
 import { submitReview, getReviewJob } from "@/lib/api/review";
 import { validReview } from "@/lib/review";
@@ -220,30 +222,16 @@ function ReviewRunner({
       </p>
       <section className="forecast-parameters" aria-label="Review parameters">
         <fieldset disabled={active}>
-          <legend>item · {picked.length}/20 selected</legend>
-          <div className="forecast-series-picker">
-            {dataset.series?.map((s) => (
-              <label key={s.series_id}>
-                <input
-                  type="checkbox"
-                  checked={picked.includes(s.series_id)}
-                  disabled={
-                    s.status === "excluded" ||
-                    (!picked.includes(s.series_id) && picked.length >= 20)
-                  }
-                  onChange={(e) =>
-                    setPicked(
-                      e.target.checked
-                        ? [...picked, s.series_id]
-                        : picked.filter((v) => v !== s.series_id),
-                    )
-                  }
-                />
-                {s.series_id}
-                <small>{s.status}</small>
-              </label>
-            ))}
-          </div>
+          <legend className="sr-only">Items to review</legend>
+          <MultiSelect
+            label="Items to review"
+            placeholder="Choose items…"
+            options={seriesOptions(dataset.series)}
+            value={picked}
+            onChange={setPicked}
+            max={20}
+            disabled={active}
+          />
           {!dataset.series?.length && <p>No item summaries were supplied.</p>}
           <div className="forecast-controls">
             <label>
