@@ -1,4 +1,5 @@
 "use client";
+import { itemLabel } from "@/lib/pickers";
 import { SortHeader } from "@/components/ui/table";
 import { PageHeader } from "@/components/ui/layout";
 import { RouteState } from "@/components/ui/route-state";
@@ -550,7 +551,7 @@ function PortfolioTable({
                 )}
                 <th scope="row">
                   <Link className="text-link" href={url(s.series_id)}>
-                    {s.series_id} <span aria-hidden="true">↗</span>
+                    {itemLabel(s.series_id)} <span aria-hidden="true">↗</span>
                   </Link>
                   <small className="portfolio-period">
                     {s.dates.length

@@ -12,10 +12,11 @@ import { validAccuracy, type Accuracy } from "@/lib/accuracy";
 import { getAccuracyJob, submitAccuracy } from "@/lib/api/accuracy";
 import { useDatasetPreferences } from "@/lib/preferences";
 import { AccuracyResults } from "./accuracy-results";
+import { JobStatus } from "@/components/ui/job-status";
 import { Button } from "./ui/button";
 import { MultiSelect } from "./ui/multi-select";
 import { NumberField } from "./ui/number-field";
-import { horizonPresets, horizonUnit, seriesOptions } from "@/lib/pickers";
+import { defaultItems, horizonPresets, horizonUnit, seriesOptions } from "@/lib/pickers";
 
 export function AccuracyDemo({ id }: { id: string }) {
   const preferences = useDatasetPreferences(id);
@@ -142,7 +143,9 @@ function AccuracyRunner({
   initialJob?: string;
 }) {
   const preferences = useDatasetPreferences(id);
-  const [picked, setPicked] = useState<string[]>([]);
+  const [picked, setPicked] = useState<string[]>(() =>
+    defaultItems(dataset.series),
+  );
   const [horizonInput, setHorizonInput] = useState<string>();
   const horizon = horizonInput ?? String(preferences.horizon ?? 28);
   const setHorizon = (value: string) => {
@@ -312,54 +315,16 @@ function AccuracyRunner({
         </p>
       )}
       {jobId && (
-        <section className="accuracy-job" aria-label="Accuracy job">
-          <div>
-            <span>Job {jobId}</span>
-            {job.isError ? (
-              <div role="alert">
-                <p>{job.error.message}</p>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setPaused(false);
-                    job.refetch();
-                  }}
-                >
-                  Retry job status
-                </Button>
-              </div>
-            ) : (
-              <p role="status">
-                {paused
-                  ? "Status checks paused"
-                  : job.data?.status || "Loading job…"}
-                {job.data?.message ? ` · ${job.data.message}` : ""}
-              </p>
-            )}
-          </div>
-          {job.data && (
-            <label>
-              Progress: {job.data.progress}%
-              <progress
-                max="100"
-                value={job.data.progress}
-                aria-label="Accuracy progress"
-              />
-            </label>
-          )}
-          {active && (
-            <Button variant="outline" onClick={() => setPaused(!paused)}>
-              {paused ? "Resume status checks" : "Pause status checks"}
-            </Button>
-          )}
-          {paused && <small>The server job keeps running.</small>}
-          {job.data?.status === "failed" && (
-            <p role="alert">
-              {job.data.error?.message ||
-                "The accuracy job failed. Review the settings and run again."}
-            </p>
-          )}
-        </section>
+        <JobStatus
+          jobId={jobId}
+          noun="accuracy backtest"
+          job={job.data}
+          readError={job.isError ? job.error.message : undefined}
+          onRetry={() => {
+            setPaused(false);
+            job.refetch();
+          }}
+        />
       )}
       {mismatch && (
         <p role="alert" className="upload-error">

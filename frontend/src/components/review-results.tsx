@@ -1,4 +1,5 @@
 "use client";
+import { itemLabel } from "@/lib/pickers";
 import { RouteState } from "@/components/ui/route-state";
 import { Disclosure } from "@/components/ui/controls";
 import { Callout, Hint } from "@/components/ui/feedback";
@@ -183,7 +184,10 @@ export function ReviewResults({
       <div className="forecast-controls">
         <Select
           label="Item"
-          options={review.series.map((s) => ({ value: s.series_id }))}
+          options={review.series.map((s) => ({
+            value: s.series_id,
+            label: itemLabel(s.series_id),
+          }))}
           value={series.series_id}
           onChange={setSelected}
         />

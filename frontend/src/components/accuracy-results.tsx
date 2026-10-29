@@ -1,4 +1,5 @@
 "use client";
+import { itemLabel } from "@/lib/pickers";
 import { SortHeader } from "@/components/ui/table";
 import { RouteState } from "@/components/ui/route-state";
 import { Disclosure } from "@/components/ui/controls";
@@ -190,7 +191,10 @@ export function AccuracyResults({
       <div className="accuracy-selection">
         <Select
           label="Chart item"
-          options={result.series.map((item) => ({ value: item.series_id }))}
+          options={result.series.map((item) => ({
+            value: item.series_id,
+            label: itemLabel(item.series_id),
+          }))}
           value={item.series_id}
           onChange={setSelected}
         />
@@ -311,7 +315,7 @@ export function AccuracyResults({
                       onClick={() => setSelected(row.series_id)}
                       aria-pressed={row.series_id === item.series_id}
                     >
-                      {row.series_id}
+                      {itemLabel(row.series_id)}
                     </button>
                   </th>
                   <td>{pct(row.wape)}</td>
@@ -338,7 +342,7 @@ export function AccuracyResults({
       </section>
       <Disclosure
         className="accuracy-values"
-        summary={<>Chart values · {item.series_id}</>}
+        summary={<>Chart values · {itemLabel(item.series_id)}</>}
       >
         <div className="health-table-scroll">
           <table>

@@ -6,9 +6,9 @@ import * as echarts from "echarts/core";
  * tooltip) come from the registered "zc-light" / "zc-dark" themes below.
  */
 export const CHART = {
-  primary: "#2f7d5b", // forecast, base case, positive lift
-  primaryDark: "#8dd7b4", // primary on dark backgrounds
-  range: "#2f7d5b", // forecast range band (use with opacity)
+  primary: "#1f7a57", // forecast, base case, positive lift
+  primaryDark: "#5fd4a0", // primary on dark backgrounds
+  range: "#1f7a57", // forecast range band (use with opacity)
   history: "#6b7a72", // recorded demand
   good: "#2f8f66", // spike / better
   bad: "#c4605a", // drop / worse
@@ -31,20 +31,20 @@ type Structural = {
 export function chartStructure(dark: boolean): Structural {
   return dark
     ? {
-        text: "#b8c8be",
-        subtle: "#8a9c92",
-        axis: "#3b4e43",
-        grid: "#26352d",
-        surface: "#17231d",
-        empty: "#22302a",
+        text: "#b4bfba",
+        subtle: "#9ba7a1",
+        axis: "#313a36",
+        grid: "#1f2623",
+        surface: "#121614",
+        empty: "#191e1c",
       }
     : {
-        text: "#4f5f56",
-        subtle: "#7b8a82",
-        axis: "#c3cec7",
-        grid: "#e6ebe8",
+        text: "#5b6661",
+        subtle: "#7b8681",
+        axis: "#d2d7d4",
+        grid: "#eceeed",
         surface: "#ffffff",
-        empty: "#eef2ef",
+        empty: "#f1f3f2",
       };
 }
 

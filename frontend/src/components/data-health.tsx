@@ -1,4 +1,5 @@
 "use client";
+import { itemLabel } from "@/lib/pickers";
 import { Pagination, SortHeader } from "@/components/ui/table";
 import { PageHeader } from "@/components/ui/layout";
 import { RouteState } from "@/components/ui/route-state";
@@ -533,7 +534,7 @@ function HealthReport({
                   <tbody>
                     {visibleRows.map((s, i) => (
                       <tr key={`${s.series_id}-${i}`}>
-                        <th scope="row">{s.series_id}</th>
+                        <th scope="row">{itemLabel(s.series_id)}</th>
                         <td>{number(s.length)}</td>
                         <td>
                           {date(s.start)}

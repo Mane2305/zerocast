@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { loadHealth } from "@/lib/data-health";
 import { useDatasetPreferences } from "@/lib/preferences";
+import { itemLabel } from "@/lib/pickers";
 export function Shell({ children }: { children: React.ReactNode }) {
   const { resolvedTheme, setTheme } = useTheme();
   const pathname = usePathname();
@@ -196,7 +197,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
           label="Dataset"
           options={[
             ...(uploaded
-              ? [{ value: "uploaded", label: "Uploaded dataset" }]
+              ? [
+                  {
+                    value: "uploaded",
+                    label: uploadedData.data?.name || "Uploaded dataset",
+                  },
+                ]
               : []),
             ...demos.map((item) => ({
               value: item.id,
@@ -257,8 +263,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {current}
             <span>
               {" "}
-              / {demo?.title || (uploaded ? "Uploaded data" : "Workspace")}
-              {activeItem && itemScoped && ` · ${activeItem}`}
+              /{" "}
+              {demo?.title ||
+                (uploaded ? uploadedData.data?.name || "Uploaded data" : "Workspace")}
+              {activeItem && itemScoped && ` · ${itemLabel(activeItem)}`}
             </span>
           </span>
           <div className="item-search">
@@ -271,6 +279,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               searchAbove={0}
               options={(items ?? []).map((item) => ({
                 value: item.series_id,
+                label: itemLabel(item.series_id),
               }))}
               value=""
               disabled={!items?.length}

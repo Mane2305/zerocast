@@ -2,12 +2,29 @@ import type { PickerOption } from "@/components/ui/multi-select";
 
 type SeriesLike = { series_id: string; status?: string | null };
 
+/** Display name for an item ID: hierarchy parts joined by " · " not "|". */
+export function itemLabel(id: string): string {
+  return id.split("|").join(" · ");
+}
+
+/** The first few ready items, so a fresh page can run without setup. */
+export function defaultItems(
+  series: SeriesLike[] | null | undefined,
+  count = 3,
+): string[] {
+  return (series ?? [])
+    .filter((s) => s.status !== "excluded")
+    .slice(0, count)
+    .map((s) => s.series_id);
+}
+
 /** Dataset items as picker options; excluded items stay visible but disabled. */
 export function seriesOptions(
   series: SeriesLike[] | null | undefined,
 ): PickerOption[] {
   return (series ?? []).map((s) => ({
     value: s.series_id,
+    label: itemLabel(s.series_id),
     hint: s.status === "ready" ? undefined : (s.status ?? undefined),
     disabled: s.status === "excluded",
   }));

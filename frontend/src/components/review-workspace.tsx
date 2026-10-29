@@ -7,9 +7,10 @@ import { Callout, Hint } from "@/components/ui/feedback";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { JobStatus } from "@/components/ui/job-status";
 import { Button } from "@/components/ui/button";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { seriesOptions } from "@/lib/pickers";
+import { defaultItems, seriesOptions } from "@/lib/pickers";
 import { isDataset, loadHealth, type Dataset } from "@/lib/data-health";
 import { submitReview, getReviewJob } from "@/lib/api/review";
 import { validReview } from "@/lib/review";
@@ -125,7 +126,9 @@ function ReviewRunner({
   id: string;
   initialJob?: string;
 }) {
-  const [picked, setPicked] = useState<string[]>([]),
+  const [picked, setPicked] = useState<string[]>(() =>
+    defaultItems(dataset.series),
+  ),
     [lookback, setLookback] = useState(""),
     [step, setStep] = useState("");
   const [jobId, setJobId] = useState(initialJob || ""),
@@ -254,7 +257,7 @@ function ReviewRunner({
                 step="1"
                 value={lookback}
                 onChange={(e) => setLookback(e.target.value)}
-                placeholder="Source default: about 12 months"
+                placeholder="Default (≈12 months)"
               />
             </label>
             <label>
@@ -266,7 +269,7 @@ function ReviewRunner({
                 step="1"
                 value={step}
                 onChange={(e) => setStep(e.target.value)}
-                placeholder="Use source default"
+                placeholder="Default"
               />
             </label>
             <Button onClick={run} disabled={!!invalid || active}>
@@ -289,73 +292,16 @@ function ReviewRunner({
         <EmptyState icon={Sparkles} title={<>Look back with perspective.</>} />
       )}
       {jobId && (
-        <section className="forecast-job" aria-label="Review job">
-          <p>Review job: {jobId}</p>
-          {job.isError ? (
-            <div role="alert">
-              <h2>Review status unavailable</h2>
-              <p>{job.error.message}</p>
-              <Button
-                onClick={() => {
-                  setPaused(false);
-                  job.refetch();
-                }}
-              >
-                Retry review status
-              </Button>
-            </div>
-          ) : (
-            <>
-              <p role="status">
-                {paused
-                  ? "Polling paused"
-                  : job.data?.status || "Loading review status…"}
-                {job.data?.message ? ` · ${job.data.message}` : ""}
-              </p>
-              {job.data && (
-                <>
-                  <label htmlFor="review-progress">
-                    Progress: {job.data.progress}%
-                  </label>
-                  <progress
-                    id="review-progress"
-                    max="100"
-                    value={job.data.progress}
-                  />
-                </>
-              )}
-              {active && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (paused) {
-                      setPaused(false);
-                      job.refetch();
-                    } else {
-                      setPaused(true);
-                      client.cancelQueries({ queryKey: ["review-job", jobId] });
-                    }
-                  }}
-                >
-                  {paused ? "Resume review polling" : "Pause review polling"}
-                </Button>
-              )}
-              <Hint>
-                Pausing stops status checks, not the server job. Reload this URL
-                to resume the same job.
-              </Hint>
-            </>
-          )}
-          {job.data?.status === "failed" && (
-            <div role="alert">
-              <h2>Review failed</h2>
-              <p>
-                {job.data.error?.message ||
-                  "No failure reason was supplied. Review inputs and run again."}
-              </p>
-            </div>
-          )}
-        </section>
+        <JobStatus
+          jobId={jobId}
+          noun="exceptions review"
+          job={job.data}
+          readError={job.isError ? job.error.message : undefined}
+          onRetry={() => {
+            setPaused(false);
+            job.refetch();
+          }}
+        />
       )}
       {mismatch && (
         <p role="alert">
@@ -366,7 +312,7 @@ function ReviewRunner({
       {result && !mismatch && (
         <>
           <Hint>
-            Results belong to job {jobId}. Changed replay options apply to the
+            Showing your last run. Changed replay options apply to the
             next run.
           </Hint>
           <ReviewResults

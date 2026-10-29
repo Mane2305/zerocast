@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { demos, findDemo } from "@/lib/demos";
 import { DemoPreview } from "@/components/demo-preview";
 export function generateStaticParams() {
@@ -12,6 +12,8 @@ export default async function DemoPage({
   searchParams: Promise<{ series?: string | string[] }>;
 }) {
   const { demoId } = await params;
+  // Old synthetic demo links now open the real dataset of the same kind.
+  if (demoId.endsWith("-mock")) redirect(`/forecast/${demoId.slice(0, -5)}`);
   const demo = findDemo(demoId);
   if (!demo) notFound();
   const { series } = await searchParams;

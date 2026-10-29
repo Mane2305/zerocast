@@ -7,6 +7,7 @@ import { Callout, Hint } from "@/components/ui/feedback";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { JobStatus } from "@/components/ui/job-status";
 import { Button } from "@/components/ui/button";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { NumberField } from "@/components/ui/number-field";
@@ -305,73 +306,16 @@ function FactorRunner({
         />
       )}
       {jobId && (
-        <section className="forecast-job" aria-label="driver job">
-          <p>driver job: {jobId}</p>
-          {job.isError ? (
-            <div role="alert">
-              <h2>driver status unavailable</h2>
-              <p>{job.error.message}</p>
-              <Button
-                onClick={() => {
-                  setPaused(false);
-                  job.refetch();
-                }}
-              >
-                Retry driver status
-              </Button>
-            </div>
-          ) : (
-            <>
-              <p role="status">
-                {paused
-                  ? "Polling paused"
-                  : job.data?.status || "Loading driver status…"}
-                {job.data?.message ? ` · ${job.data.message}` : ""}
-              </p>
-              {job.data && (
-                <>
-                  <label htmlFor="factor-progress">
-                    Progress: {job.data.progress}%
-                  </label>
-                  <progress
-                    id="factor-progress"
-                    max="100"
-                    value={job.data.progress}
-                  />
-                </>
-              )}
-              {active && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (paused) {
-                      setPaused(false);
-                      job.refetch();
-                    } else {
-                      setPaused(true);
-                      client.cancelQueries({ queryKey: ["factor-job", jobId] });
-                    }
-                  }}
-                >
-                  {paused ? "Resume driver polling" : "Pause driver polling"}
-                </Button>
-              )}
-              <Hint>
-                Pausing stops status checks, not the server job. Reload this URL
-                to resume the same job.
-              </Hint>
-            </>
-          )}
-          {job.data?.status === "failed" && (
-            <div role="alert">
-              <h2>Drivers failed</h2>
-              <p>
-                {job.data.error?.message ||
-                  "No failure reason was supplied. Review the inputs and run again."}
-              </p>
-            </div>
-          )}
-        </section>
+        <JobStatus
+          jobId={jobId}
+          noun="driver check"
+          job={job.data}
+          readError={job.isError ? job.error.message : undefined}
+          onRetry={() => {
+            setPaused(false);
+            job.refetch();
+          }}
+        />
       )}
       {mismatch && (
         <p role="alert">
@@ -382,7 +326,7 @@ function FactorRunner({
       {result && !mismatch && (
         <>
           <Hint>
-            Results belong to job {jobId}. Changed settings apply when you run
+            Showing your last run. Changed settings apply when you run
             another check.
           </Hint>
           <FactorResults

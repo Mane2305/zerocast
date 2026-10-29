@@ -8,10 +8,16 @@ import { Callout, Hint } from "@/components/ui/feedback";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { JobStatus } from "@/components/ui/job-status";
 import { Button } from "@/components/ui/button";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { NumberField } from "@/components/ui/number-field";
-import { horizonPresets, horizonUnit, seriesOptions } from "@/lib/pickers";
+import {
+  defaultItems,
+  horizonPresets,
+  horizonUnit,
+  seriesOptions,
+} from "@/lib/pickers";
 import { loadHealth, type Dataset } from "@/lib/data-health";
 import { api } from "@/lib/api/client";
 import { submitForecast, getForecastJob, getHistory } from "@/lib/api/forecast";
@@ -74,7 +80,8 @@ function ForecastRunner({
   initialSeries?: string;
 }) {
   const preferences = useDatasetPreferences(id);
-  const picked = (preferences.picked || []).filter((item) =>
+  // A fresh dataset starts with a few items picked so Run works right away.
+  const picked = (preferences.picked ?? defaultItems(dataset.series)).filter((item) =>
     dataset.series?.some(
       (s) => s.series_id === item && s.status !== "excluded",
     ),
@@ -308,79 +315,17 @@ function ForecastRunner({
           </Hint>
         </section>
         {submitError && <Callout tone="danger">{submitError}</Callout>}
-        {!jobId && !submitting && (
-          <EmptyState icon={Sparkles} title={<>Your forecast starts here.</>} />
-        )}
         {jobId && (
-          <section className="forecast-job" aria-label="Forecast job">
-            <p>Job: {jobId}</p>
-            {job.isError ? (
-              <div role="alert">
-                <h2>Could not read the forecast job</h2>
-                <p>{job.error.message}</p>
-                <Button
-                  onClick={() => {
-                    setPaused(false);
-                    job.refetch();
-                  }}
-                >
-                  Retry job status
-                </Button>
-              </div>
-            ) : (
-              <>
-                <p role="status">
-                  {paused
-                    ? "Polling paused"
-                    : (job.data?.status ?? "Loading job status…")}
-                  {job.data?.message ? ` · ${job.data.message}` : ""}
-                </p>
-                {job.data && (
-                  <>
-                    <label htmlFor="forecast-progress">
-                      Progress: {job.data.progress}%
-                    </label>
-                    <progress
-                      id="forecast-progress"
-                      max="100"
-                      value={job.data.progress}
-                    />
-                  </>
-                )}
-                {active && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (paused) {
-                        setPaused(false);
-                        job.refetch();
-                      } else {
-                        setPaused(true);
-                        client.cancelQueries({
-                          queryKey: ["forecast-job", jobId],
-                        });
-                      }
-                    }}
-                  >
-                    {paused ? "Resume polling" : "Pause polling"}
-                  </Button>
-                )}
-                <Hint>
-                  Pausing stops status checks, not the server job. This URL
-                  retains the job ID for reload.
-                </Hint>
-              </>
-            )}
-            {job.data?.status === "failed" && (
-              <div role="alert">
-                <h2>Forecast failed</h2>
-                <p>
-                  {job.data.error?.message ||
-                    "The server did not provide a reason. Review the inputs and run again."}
-                </p>
-              </div>
-            )}
-          </section>
+          <JobStatus
+            jobId={jobId}
+            noun="forecast"
+            job={job.data}
+            readError={job.isError ? job.error.message : undefined}
+            onRetry={() => {
+              setPaused(false);
+              job.refetch();
+            }}
+          />
         )}
         {mismatch && (
           <Callout tone="danger">
@@ -418,7 +363,7 @@ function ForecastRunner({
       />
       {result && !mismatch && (
         <>
-          <Hint title={`Job ${jobId}`}>
+          <Hint>
             Showing your last run. Changes to items or horizon apply when you
             click Run forecast again.
           </Hint>
@@ -467,7 +412,26 @@ function ForecastRunner({
           )}
         </>
       )}
-      {(!result || mismatch) && parameters}
+      {(!result || mismatch) && (
+        <div className="forecast-start">
+          {parameters}
+          <EmptyState
+            icon={Sparkles}
+            title={
+              active ? "Your forecast is on its way" : "Your forecast starts here"
+            }
+            description={
+              <>
+                {dataset.series_count.toLocaleString("en-US")} items ·{" "}
+                {dataset.frequency} data
+                {dataset.unit ? ` in ${dataset.unit}` : ""}. Pick items and a
+                horizon, then run. Results show a base case, a likely range and
+                a plan for your service level.
+              </>
+            }
+          />
+        </div>
+      )}
     </div>
   );
 }

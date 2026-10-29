@@ -170,21 +170,21 @@ export function ExceptionCalendar({
       ) : (
         <p role="status">
           {query.isFetching
-            ? "Loading complete backtest…"
-            : "Complete backtest unavailable. "}
+            ? "Loading the backtest…"
+            : "The calendar colours each day by how far it was from the forecast. It needs an accuracy backtest for this item. "}
           {!query.isFetching && (
             <Link
               className="text-link"
               href={saved ? `/accuracy/demo/${id}` : `/accuracy/dataset/${id}`}
             >
-              Open Accuracy
+              Run Accuracy →
             </Link>
           )}
         </p>
       )}
-      <small>
-        Only supplied periods are colored · {year || "No year supplied"}
-      </small>
+      {item && points.length > 0 && (
+        <small>Only periods in the backtest are coloured · {year}</small>
+      )}
     </Card>
   );
 }

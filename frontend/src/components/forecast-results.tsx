@@ -12,7 +12,7 @@ import { suppliedPaths, type ReviewSeries } from "@/lib/forecast-story";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { horizonUnit } from "@/lib/pickers";
+import { itemLabel, horizonUnit } from "@/lib/pickers";
 import { lastBacktest, type Accuracy } from "@/lib/accuracy";
 import {
   forecastCsv,
@@ -156,7 +156,10 @@ export function ForecastResults({
             <h2>Planning controls</h2>
             <Select
               label="Item"
-              options={forecast.series.map((s) => ({ value: s.series_id }))}
+              options={forecast.series.map((s) => ({
+                value: s.series_id,
+                label: itemLabel(s.series_id),
+              }))}
               value={series.series_id}
               onChange={setSelected}
             />
@@ -213,7 +216,10 @@ export function ForecastResults({
         <Select
           className="result-item"
           label="Item"
-          options={forecast.series.map((item) => ({ value: item.series_id }))}
+          options={forecast.series.map((item) => ({
+            value: item.series_id,
+            label: itemLabel(item.series_id),
+          }))}
           value={series.series_id}
           onChange={setSelected}
         />
@@ -339,36 +345,7 @@ export function ForecastResults({
         </Button>
       </div>
       {historyNote && <Hint role="status">{historyNote}</Hint>}
-      {reviewNote && (
-        <Disclosure
-          className="review-note"
-          summary={<>Range accuracy status</>}
-        >
-          <p>{reviewNote}</p>
-        </Disclosure>
-      )}
-      <div className="scenario-row" aria-label="Planning cases">
-        {[
-          [10, "Low case (P10)"],
-          [50, "Base case (P50)"],
-          [90, "High case (P90)"],
-        ].map(([index, label]) => (
-          <article key={index}>
-            <span>
-              {label}{" "}
-              <InfoTip label={`${label} definition`}>
-                {index === 50
-                  ? "The middle forecast; demand is equally likely to be above or below it."
-                  : index === 10
-                    ? "Demand is expected to fall below the low case 1 time in 10."
-                    : "Demand is expected to exceed the high case 1 time in 10."}
-              </InfoTip>
-            </span>
-            <strong>{format(total[Number(index)])}</strong>
-            <small>{average ? "Average per period" : "Horizon total"}</small>
-          </article>
-        ))}
-      </div>
+      {reviewNote && <Hint className="review-note">{reviewNote}</Hint>}
       <div
         className="forecast-risk-grid"
         style={average ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}
@@ -470,7 +447,7 @@ export function ForecastResults({
       >
         <div className="health-table-scroll" tabIndex={0}>
           <table>
-            <caption>Per-period values · {series.series_id}</caption>
+            <caption>Per-period values · {itemLabel(series.series_id)}</caption>
             <thead>
               <tr>
                 <th>Date</th>
