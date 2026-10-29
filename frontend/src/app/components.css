@@ -798,3 +798,42 @@
 .zc-disclosure-body {
   padding: 0 16px 16px;
 }
+
+/* ---------- Info tooltips (portal; never clipped) ---------- */
+.info-tip > button {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--muted-foreground);
+  cursor: help;
+}
+.info-tip > button:hover,
+.info-tip > button[data-state="open"] {
+  color: var(--primary);
+  background: var(--muted);
+}
+.zc-tooltip {
+  z-index: 70;
+  max-width: min(300px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--shadow-pop);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  white-space: normal;
+  animation: zc-pop 0.1s ease-out;
+}
+.zc-tooltip-arrow {
+  fill: var(--card);
+  stroke: var(--border);
+}

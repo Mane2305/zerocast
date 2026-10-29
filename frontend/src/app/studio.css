@@ -407,22 +407,6 @@
   align-items: stretch;
   gap: 12px;
 }
-.studio .api-planning-panel .forecast-series-picker {
-  max-height: 220px;
-  overflow: auto;
-  display: block;
-}
-.studio .api-planning-panel .forecast-series-picker label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-}
-.studio .api-planning-panel .forecast-series-picker input {
-  width: auto;
-  margin: 0;
-  padding: 0;
-}
 .result-item {
   display: flex;
   align-items: center;
@@ -515,38 +499,6 @@
   font-size: 13px;
   color: var(--muted-foreground);
   white-space: nowrap;
-}
-.studio .forecast-kpis {
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  border: 0;
-  border-radius: 0;
-  gap: 10px;
-  background: transparent;
-  margin-bottom: 16px;
-}
-.studio .forecast-kpis > div {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--card);
-  min-height: 86px;
-}
-.studio .forecast-kpis dt {
-  font-size: 10px;
-  text-transform: uppercase;
-  gap: 3px;
-}
-.studio .forecast-kpis dd {
-  font-size: 22px;
-  line-height: 1.1;
-  margin: 4px 0;
-}
-.studio .forecast-kpis small {
-  font-size: 10px;
-}
-.studio .forecast-kpis > div:last-child {
-  grid-column: auto;
-  border: 1px solid var(--border);
 }
 .studio .chart-heading {
   margin: 0 0 10px;
@@ -750,9 +702,6 @@
   padding: 12px 16px;
   margin-block: 16px;
 }
-.studio .info-tip-content {
-  z-index: 60;
-}
 @media (max-width: 1200px) {
   .studio-topbar {
     gap: 10px;
@@ -765,9 +714,6 @@
   }
   .planning-panel {
     width: 230px;
-  }
-  .studio .forecast-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 900px) {
@@ -788,9 +734,6 @@
   .studio-sidebar .brand {
     padding-inline: 0;
     justify-content: center;
-  }
-  .studio .forecast-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .studio .item-search {
     max-width: 170px;
@@ -951,16 +894,6 @@
   }
   .studio .plan-service {
     font-size: 12px;
-  }
-  .studio .forecast-kpis {
-    gap: 8px;
-  }
-  .studio .forecast-kpis > div {
-    padding: 10px;
-    min-height: 84px;
-  }
-  .studio .forecast-kpis dd {
-    font-size: 22px;
   }
   .studio .chart-heading {
     display: flex;

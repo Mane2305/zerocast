@@ -193,26 +193,6 @@
   font-size: 12px;
   margin-bottom: 8px;
 }
-.accuracy-item-picker {
-  max-height: 200px;
-  overflow: auto;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-.accuracy-item-picker label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-.accuracy-item-picker input {
-  accent-color: var(--primary);
-}
-.accuracy-item-picker small {
-  color: var(--muted-foreground);
-  font-size: 10px;
-}
 .accuracy-run-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -308,9 +288,6 @@
   .accuracy-run-grid {
     grid-template-columns: 1fr;
     gap: 16px;
-  }
-  .accuracy-item-picker {
-    grid-template-columns: 1fr;
   }
   .accuracy-source {
     flex-wrap: wrap;
