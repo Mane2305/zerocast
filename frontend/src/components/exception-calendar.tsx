@@ -78,6 +78,15 @@ export function ExceptionCalendar({
           ],
     ) || [];
   const daily = ["daily", "weekly"].includes(frequency);
+  // Show only the months that have data (a backtest rarely spans a full year).
+  const shown = points.map((p) => p.value[0] as string).sort();
+  const range: string | string[] =
+    shown.length && year
+      ? [
+          shown[0].slice(0, 8) + "01",
+          lastDayOfMonth(shown[shown.length - 1].slice(0, 7)),
+        ]
+      : year || "";
   const option: EChartsOption = {
     tooltip: {
       trigger: "item",
@@ -104,8 +113,8 @@ export function ExceptionCalendar({
             top: 35,
             left: 45,
             right: 15,
-            range: year,
-            cellSize: ["auto", 20],
+            range,
+            cellSize: ["auto", 22],
             splitLine: { show: false },
             itemStyle: { color: "transparent", borderColor: "#e0e5e1" },
             yearLabel: { show: false },
@@ -177,4 +186,9 @@ export function ExceptionCalendar({
       </small>
     </section>
   );
+}
+
+function lastDayOfMonth(month: string) {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
 }

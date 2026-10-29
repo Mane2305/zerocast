@@ -179,7 +179,7 @@ export class FileProcessor {
     );
     if (badDates)
       throw new Error(
-        `${badDates.toLocaleString()} rows have missing or invalid dates. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS without timezone offsets.`,
+        `${badDates.toLocaleString("en-US")} rows have missing or invalid dates. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS without timezone offsets.`,
       );
     const missingIds = await this.count(
       wide
@@ -188,7 +188,7 @@ export class FileProcessor {
     );
     if (missingIds)
       throw new Error(
-        `${missingIds.toLocaleString()} rows have a blank series ID. Fill in the series column before importing.`,
+        `${missingIds.toLocaleString("en-US")} rows have a blank series ID. Fill in the series column before importing.`,
       );
     if (
       ids.length > 1 &&
@@ -207,7 +207,7 @@ export class FileProcessor {
       );
       if (bad)
         throw new Error(
-          `${bad.toLocaleString()} values in “${column}” are not finite numbers. Remove currency symbols, grouping commas, text, NaN, and infinity. Leave unknown values blank.`,
+          `${bad.toLocaleString("en-US")} values in “${column}” are not finite numbers. Remove currency symbols, grouping commas, text, NaN, and infinity. Leave unknown values blank.`,
         );
     }
     // Only allow predefined aggregation and date functions; source identifiers are escaped.
@@ -235,7 +235,7 @@ export class FileProcessor {
       this.inspection.rows * (wide ? mapping.wideColumns!.length : 1) - groups;
     if (mapping.aggregation === "reject" && collapsed > 0)
       throw new Error(
-        `${collapsed.toLocaleString()} extra rows share a date and series. Choose an explicit sum or average rule, or fix the duplicates in your file.`,
+        `${collapsed.toLocaleString("en-US")} extra rows share a date and series. Choose an explicit sum or average rule, or fix the duplicates in your file.`,
       );
     status("Building the universal template…");
     if (mapping.aggregation === "reject")

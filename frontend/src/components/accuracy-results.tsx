@@ -32,10 +32,10 @@ export function AccuracyResults({
   >("wape");
   const [descending, setDescending] = useState(true);
   const [search, setSearch] = useState("");
-  const percent = new Intl.NumberFormat(undefined, {
+  const percent = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 1,
   });
-  const signed = new Intl.NumberFormat(undefined, {
+  const signed = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 1,
     signDisplay: "always",
   });

@@ -17,7 +17,7 @@ export function ModelDeployment() {
     staleTime: 0,
   });
   const number = (v: number) =>
-    new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(v);
+    new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(v);
   const data = info.data;
   const stats = data ? latencyState(data) : undefined;
   return (

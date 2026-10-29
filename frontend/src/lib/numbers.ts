@@ -15,7 +15,9 @@ export function valueFormatter(
     ? "INR"
     : undefined;
   return new Intl.NumberFormat(
-    currency === "INR" || country === "IN" ? "en-IN" : locale,
+    // One grouping style app-wide (the browser locale mixed 5,71,405 with 34,000);
+    // Indian grouping only for INR or India-based datasets.
+    currency === "INR" || country === "IN" ? "en-IN" : (locale ?? "en-US"),
     {
       maximumFractionDigits:
         !currency && countUnits(unit)

@@ -43,7 +43,7 @@ export function PortfolioBubbles({
         const item = rowsById.get(String(point.name));
         if (!item) return "";
         const format = valueFormatter({ unit, country });
-        const metric = new Intl.NumberFormat(undefined, {
+        const metric = new Intl.NumberFormat("en-US", {
           maximumFractionDigits: 1,
         });
         return `${item.series_id}\nBase case per period: ${format.format(additive ? item.total_distribution.percentiles[50] / item.dates.length : item.total_distribution.percentiles[50])}\nVariability: ${metric.format(item.risk.uncertainty_score * 100)}%`;

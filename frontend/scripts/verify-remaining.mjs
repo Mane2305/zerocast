@@ -18,7 +18,7 @@ try {
   for (const [name, url, chart] of [
     ["portfolio", "/portfolio/demo/retail", ".studio-chart svg"],
     ["exceptions", "/review/demo/retail", ".studio-chart svg"],
-    ["drivers", "/factors/demo", ".driver-cards .studio-chart svg"],
+    ["drivers", "/factors/demo", ".driver-compare .studio-chart svg"],
   ]) {
     await page.goto(base + url);
     await expect(page.locator(chart).first()).toBeVisible();

@@ -53,7 +53,7 @@ export function ReviewResults({
   });
   const series =
     review.series.find((s) => s.series_id === selected) ?? review.series[0];
-  const locale = country === "IN" ? "en-IN" : undefined;
+  const locale = country === "IN" ? "en-IN" : "en-US";
   const number = (v: number) =>
     valueFormatter({ country, unit: findDemo(id)?.unit }).format(v);
   const signed = (v: number) =>

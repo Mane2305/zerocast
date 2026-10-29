@@ -26,7 +26,7 @@ export function ForecastStory({
   level: number;
 }) {
   const format = valueFormatter({ country, unit });
-  const metric = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
+  const metric = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
   const distribution = series.total_distribution.percentiles;
   const coverage = accuracy?.coverage_p10_p90 ?? review?.band_coverage;
   return (

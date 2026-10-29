@@ -101,5 +101,5 @@ export function fileError(file: File) {
 }
 export const fileSize = (bytes: number) =>
   bytes < 10_000
-    ? `${bytes.toLocaleString()} bytes`
-    : `${(bytes / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })} MB`;
+    ? `${bytes.toLocaleString("en-US")} bytes`
+    : `${(bytes / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 2 })} MB`;

@@ -82,7 +82,7 @@ export default function AccuracyChart({
                 const point = points.find((p) => p.seriesName === "Observed");
                 const values = point?.value;
                 if (!Array.isArray(values)) return "";
-                const number = new Intl.NumberFormat(undefined, {
+                const number = new Intl.NumberFormat("en-US", {
                   maximumFractionDigits: 1,
                 });
                 return `Promised: ${number.format(Number(values[0]))}%\nObserved: ${number.format(Number(values[1]))}%`;

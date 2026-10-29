@@ -63,7 +63,7 @@ function Preview({ rows }: { rows: Record<string, string>[] }) {
     <div className="upload-preview-wrap">
       {columns.length > 3 && (
         <p className="upload-preview-hint">
-          {columns.length.toLocaleString()} columns · Scroll horizontally to
+          {columns.length.toLocaleString("en-US")} columns · Scroll horizontally to
           review all fields.
         </p>
       )}
@@ -413,7 +413,7 @@ export function UploadFlow() {
           <div className="section-title">
             <h2>Confirm your columns</h2>
             <span className="badge">
-              {inspection.rows.toLocaleString()} source rows
+              {inspection.rows.toLocaleString("en-US")} source rows
             </span>
           </div>
           {inspection.sheets.length > 0 && (
@@ -605,21 +605,21 @@ export function UploadFlow() {
           <div className="preview-stats">
             <article>
               <span>Prepared rows</span>
-              <strong>{prepared.rows.toLocaleString()}</strong>
+              <strong>{prepared.rows.toLocaleString("en-US")}</strong>
               <small>
-                {prepared.collapsed.toLocaleString()} source rows combined
+                {prepared.collapsed.toLocaleString("en-US")} source rows combined
               </small>
             </article>
             <article>
               <span>Items</span>
-              <strong>{prepared.series.toLocaleString()}</strong>
+              <strong>{prepared.series.toLocaleString("en-US")}</strong>
               <small>
                 {prepared.shortSeries} with fewer than 30 known points
               </small>
             </article>
             <article>
               <span>Unknown targets</span>
-              <strong>{prepared.missingTargets.toLocaleString()}</strong>
+              <strong>{prepared.missingTargets.toLocaleString("en-US")}</strong>
               <small>Preserved as blanks</small>
             </article>
           </div>

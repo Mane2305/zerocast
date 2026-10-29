@@ -606,3 +606,31 @@ details > summary {
 .health-filters .zc-field {
   min-width: 170px;
 }
+
+/* Older page rules style every span/label small; keep the controls consistent. */
+.zc-field .zc-trigger,
+.zc-field .zc-value {
+  font-size: 14px;
+  color: var(--foreground);
+}
+.zc-field .zc-placeholder {
+  color: var(--muted-foreground);
+}
+.accuracy-selection .zc-field {
+  min-width: 200px;
+}
+
+.driver-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+.driver-compare h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.driver-compare .muted {
+  font-size: 12.5px;
+  margin: 2px 0 8px;
+}

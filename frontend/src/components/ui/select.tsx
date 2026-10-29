@@ -92,7 +92,7 @@ export function Select({
                   <Command.Input
                     value={query}
                     onValueChange={setQuery}
-                    placeholder={`Search ${options.length.toLocaleString()} options…`}
+                    placeholder={`Search ${options.length.toLocaleString("en-US")} options…`}
                   />
                 </div>
               )}
